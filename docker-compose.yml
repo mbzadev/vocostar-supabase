@@ -346,6 +346,8 @@ services:
         "pg_isready",
         "-U",
         "postgres",
+        "-p",
+        "${POSTGRES_PORT}",
         "-h",
         "localhost"
         ]
@@ -472,7 +474,7 @@ services:
       SUPABASE_ANON_KEY: ${ANON_KEY}
       SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
       SUPABASE_AUTH_JWT_SECRET: ${JWT_SECRET}
-      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@db:${POSTGRES_PORT}/${POSTGRES_DB}
       MCP_API_KEY: ${MCP_API_KEY}
     command: ["sh", "-c", "apk add --no-cache git && rm -rf /app && git clone https://github.com/lelordd/mcp-supabase-hosted.git /app && cd /app && bun install && bun run build && sleep 5 && bun run dist/index.js --transport http --port 3000 --host 0.0.0.0 --cors-origins '*'"]
 
