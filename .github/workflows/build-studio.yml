@@ -48,7 +48,7 @@ jobs:
           context: ./supabase
           file: ./supabase/apps/studio/Dockerfile
           push: true
-          tags: ghcr.io/${{ steps.owner.outputs.owner }}/supabase-studio:custom
+          tags: ghcr.io/${{ steps.owner.outputs.owner }}/sb-studio:custom
           target: production
           cache-from: type=gha
           cache-to: type=gha,mode=max
