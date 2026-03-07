@@ -11,7 +11,7 @@ services:
 
   studio:
     container_name: ${CONTAINER_PREFIX}-studio
-    image: supabase/studio:2026.03.04-sha-0043607
+    image: ghcr.io/lelordd/supabase-studio:custom
     restart: unless-stopped
     healthcheck:
       test: [ "CMD", "node", "-e", "fetch('http://studio:3000/api/platform/profile').then((r) => {if (r.status !== 200) throw new Error(r.status)})" ]
