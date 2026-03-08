@@ -251,12 +251,12 @@ sinks:
       - docker_host
     uri: "https://ingest.automatiser.app/v1/logs"
     encoding:
-      codec: "ndjson"
+      codec: "json"
     method: "post"
     request:
       retry_max_duration_secs: 30
       retry_initial_backoff_secs: 1
     headers:
-      Content-Type: "application/x-ndjson"
+      Content-Type: "application/json"
     healthcheck:
       enabled: false
