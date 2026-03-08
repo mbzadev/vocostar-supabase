@@ -517,7 +517,7 @@ services:
     image: timberio/vector:0.53.0-alpine
     restart: unless-stopped
     volumes:
-      - ./vector.yml:/etc/vector/vector.yml:ro,z
+      - ./volumes/logs/vector.yml:/etc/vector/vector.yml:ro,z
       - ${DOCKER_SOCKET_LOCATION}:/var/run/docker.sock:ro,z
     healthcheck:
       test:
