@@ -344,6 +344,7 @@ services:
       retries: 3
     environment:
       LOGFLARE_API_KEY: ${LOGFLARE_API_KEY}
+      CONTAINER_PREFIX: ${CONTAINER_PREFIX:-supabase}
     command: [ "--config", "/etc/vector/vector.yml" ]
     security_opt:
       - "label=disable"
