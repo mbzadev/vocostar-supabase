@@ -483,6 +483,7 @@ services:
     container_name: supabase-otel-collector
     image: otel/opentelemetry-collector-contrib:0.97.0
     restart: unless-stopped
+    user: root
     expose:
       - 4318
     volumes:
