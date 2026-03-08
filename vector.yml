@@ -246,17 +246,10 @@ sinks:
     uri: 'http://analytics:4000/api/logs?source_name=cloudflare.logs.prod&api_key=${LOGFLARE_API_KEY?LOGFLARE_API_KEY is required}'
 
   signoz:
-    type: "http"
+    type: "opentelemetry"
     inputs:
       - docker_host
-    uri: "https://ingest.automatiser.app/v1/logs"
-    encoding:
-      codec: "json"
-    method: "post"
-    request:
-      retry_max_duration_secs: 30
-      retry_initial_backoff_secs: 1
-    headers:
-      Content-Type: "application/json"
+    endpoint: "https://ingest.automatiser.app"
+    protocol: "grpc"
     healthcheck:
       enabled: false

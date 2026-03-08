@@ -332,7 +332,7 @@ services:
 
   vector:
     container_name: ${CONTAINER_PREFIX}-vector
-    image: timberio/vector:0.28.1-alpine
+    image: timberio/vector:0.34-alpine
     restart: unless-stopped
     volumes:
       - ./vector.yml:/etc/vector/vector.yml:ro,z
