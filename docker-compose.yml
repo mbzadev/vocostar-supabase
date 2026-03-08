@@ -468,11 +468,11 @@ services:
       - ./volumes/logs/vector.yml:/etc/vector/vector.yml:ro,z
       - ${DOCKER_SOCKET_LOCATION}:/var/run/docker.sock:ro,z
     healthcheck:
-      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9001/health" ]
+      test: [ "CMD-SHELL", "wget -q -O /dev/null http://localhost:9001/health || exit 1" ]
       timeout: 5s
       interval: 5s
       retries: 3
-      start_period: 10s
+      start_period: 15s
     environment:
       LOGFLARE_PUBLIC_ACCESS_TOKEN: ${LOGFLARE_PUBLIC_ACCESS_TOKEN}
     command: [ "--config", "/etc/vector/vector.yml" ]
