@@ -385,6 +385,7 @@ services:
       timeout: 5s
       interval: 5s
       retries: 10
+      start_period: 20s
     depends_on:
       db:
         # Disable this if you are using an external Postgres database
