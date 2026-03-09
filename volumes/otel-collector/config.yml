@@ -1,10 +1,13 @@
 receivers:
+  # OTLP: accept traces, metrics, and logs from instrumented apps
   otlp:
     protocols:
       grpc:
         endpoint: 0.0.0.0:4317
       http:
         endpoint: 0.0.0.0:4318
+
+  # Host metrics: CPU, disk, memory, network, etc.
   hostmetrics:
     collection_interval: 60s
     root_path: /hostfs
@@ -23,30 +26,41 @@ receivers:
         mute_process_user_error: true
       processes: {}
 
+  # Container metrics from Docker daemon
+  docker_stats:
+    endpoint: unix:///var/run/docker.sock
+    collection_interval: 10s
+    timeout: 20s
+
+  # Container logs: Docker JSON log files
   filelog:
     include:
-      - /var/lib/docker/containers/*/*.log
+      - /var/lib/docker/containers/*/*-json.log
     start_at: beginning
-    include_file_path: true
     include_file_name: false
+    include_file_path: true
     operators:
-      - type: json_parser
-        id: parse_docker
-        timestamp:
-          parse_from: attributes.time
-          layout: '%Y-%m-%dT%H:%M:%S.%fZ'
-      - type: move
-        from: attributes.log
-        to: body
-      - type: remove
-        field: attributes.time
-      - type: regex_parser
-        id: extract_container_id
-        regex: '^/var/lib/docker/containers/(?P<container_id>[a-f0-9]+)/.*$'
-        parse_from: attributes["log.file.path"]
-      - type: move
-        from: attributes.container_id
-        to: resource["docker.container.id"]
+      - id: container-parser
+        type: container
+        format: docker
+        add_metadata_from_filepath: false
+
+  # Supabase Prometheus metrics
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: "MySupabaseJob"
+          metrics_path: "/customer/v1/privileged/metrics"
+          scheme: https
+          tls_config:
+            insecure_skip_verify: true
+          basic_auth:
+            username: "service_role"
+            password: "${env:SERVICE_ROLE_KEY}"
+          static_configs:
+            - targets: ["${env:SUPABASE_METRICS_TARGET}"]
+              labels:
+                group: "MyGroupLabel"
 
 processors:
   batch:
@@ -54,6 +68,13 @@ processors:
     timeout: 10s
   resourcedetection:
     detectors: [env, system, docker]
+    timeout: 2s
+    system:
+      hostname_sources: [os]
+  memory_limiter:
+    check_interval: 5s
+    limit_mib: 4000
+    spike_limit_mib: 800
 
 exporters:
   otlphttp:
@@ -64,15 +85,15 @@ exporters:
 
 service:
   pipelines:
-    metrics:
-      receivers: [otlp, hostmetrics]
-      processors: [batch, resourcedetection]
-      exporters: [otlphttp]
     traces:
       receivers: [otlp]
-      processors: [batch, resourcedetection]
+      processors: [memory_limiter, resourcedetection, batch]
+      exporters: [otlphttp]
+    metrics:
+      receivers: [otlp, hostmetrics, docker_stats, prometheus]
+      processors: [memory_limiter, resourcedetection, batch]
       exporters: [otlphttp]
     logs:
       receivers: [otlp, filelog]
-      processors: [batch, resourcedetection]
+      processors: [memory_limiter, resourcedetection, batch]
       exporters: [otlphttp]
