@@ -26,9 +26,10 @@ receivers:
         - job_name: "MySupabaseJob"
           metrics_path: "/customer/v1/privileged/metrics"
           scheme: https
-          basic_auth:
-            username: "service_role"
-            password: "${env:SUPABASE_SERVICE_ROLE_JWT}"
+          # Only use basic_auth if SUPABASE_SERVICE_ROLE_JWT is provided
+          # basic_auth:
+          #   username: "service_role"
+          #   password: "${env:SUPABASE_SERVICE_ROLE_JWT}"
           static_configs:
             - targets: ["${env:SUPABASE_PROJECT_URL}"]
               labels:
@@ -63,8 +64,7 @@ exporters:
     endpoint: ${env:SIGNOZ_ENDPOINT}
     tls:
       insecure: false
-    headers:
-      signoz-ingestion-key: ${env:SIGNOZ_INGESTION_KEY}
+    # headers section is removed to prevent crash if SIGNOZ_INGESTION_KEY is empty
 
 service:
   pipelines:
