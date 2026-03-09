@@ -82,8 +82,6 @@ exporters:
     tls:
       insecure: false
       insecure_skip_verify: true
-    headers:
-      signoz-ingestion-key: ${env:SIGNOZ_INGESTION_KEY}
 
 service:
   pipelines:
