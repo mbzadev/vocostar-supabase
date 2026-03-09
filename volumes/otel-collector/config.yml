@@ -40,22 +40,34 @@ receivers:
         format: docker
         add_metadata_from_filepath: false
 
-  # Supabase Prometheus metrics
+  # Supabase internal service metrics (self-hosted only)
   prometheus:
     config:
       scrape_configs:
-        - job_name: "MySupabaseJob"
-          metrics_path: "/customer/v1/privileged/metrics"
-          scheme: https
-          tls_config:
-            insecure_skip_verify: true
-          basic_auth:
-            username: "service_role"
-            password: "${env:SERVICE_ROLE_KEY}"
+        - job_name: "supabase-auth"
+          metrics_path: "/metrics"
           static_configs:
-            - targets: ["${env:SUPABASE_METRICS_TARGET}"]
+            - targets: ["auth:9999"]
               labels:
-                group: "MyGroupLabel"
+                service: "supabase-auth"
+        - job_name: "supabase-rest"
+          metrics_path: "/metrics"
+          static_configs:
+            - targets: ["rest:3000"]
+              labels:
+                service: "supabase-rest"
+        - job_name: "supabase-storage"
+          metrics_path: "/metrics"
+          static_configs:
+            - targets: ["storage:5000"]
+              labels:
+                service: "supabase-storage"
+        - job_name: "supabase-realtime"
+          metrics_path: "/metrics"
+          static_configs:
+            - targets: ["realtime-dev.supabase-realtime:4000"]
+              labels:
+                service: "supabase-realtime"
 
 processors:
   batch:
