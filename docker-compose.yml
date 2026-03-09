@@ -492,6 +492,9 @@ services:
       - ./volumes/otel-collector/config.yml:/etc/otelcol-contrib/config.yaml:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - ${DOCKER_SOCKET_LOCATION}:/var/run/docker.sock:ro
+      - /proc:/hostfs/proc:ro
+      - /sys:/hostfs/sys:ro
+      - /:/hostfs:ro
     environment:
       SIGNOZ_ENDPOINT: ${SIGNOZ_ENDPOINT:-ingest.automatiser.app:443}
       SIGNOZ_INGESTION_KEY: ${SIGNOZ_INGESTION_KEY:-}

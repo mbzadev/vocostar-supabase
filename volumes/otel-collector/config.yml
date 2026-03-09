@@ -1,11 +1,25 @@
 receivers:
-  # Receive OTLP logs from Supabase Log Drains (HTTP protobuf on port 4318)
   otlp:
     protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
       http:
         endpoint: 0.0.0.0:4318
-
-  # Also collect Docker container logs directly (backup/additional source)
+  hostmetrics:
+    collection_interval: 60s
+    scrapers:
+      cpu: {}
+      disk: {}
+      load: {}
+      filesystem: {}
+      memory: {}
+      network: {}
+      paging: {}
+      process:
+        mute_process_name_error: true
+        mute_process_exe_error: true
+        mute_process_io_error: true
+      processes: {}
   prometheus:
     config:
       scrape_configs:
@@ -39,32 +53,30 @@ receivers:
 
 processors:
   batch:
-    timeout: 10s
     send_batch_size: 1000
-  resource:
-    attributes:
-      - key: service.name
-        value: "SUPA-VSTR"
-        action: insert
-      - key: deployment.environment
-        value: "production"
-        action: insert
+    timeout: 10s
+  resourcedetection:
+    detectors: [env, host, system, docker]
 
 exporters:
-  otlphttp:
+  otlp:
     endpoint: ${env:SIGNOZ_ENDPOINT}
     tls:
       insecure: false
     headers:
-      "signoz-ingestion-key": ${env:SIGNOZ_INGESTION_KEY}
+      signoz-ingestion-key: ${env:SIGNOZ_INGESTION_KEY}
 
 service:
   pipelines:
-    logs/drains:
+    metrics:
+      receivers: [otlp, hostmetrics, prometheus]
+      processors: [batch, resourcedetection]
+      exporters: [otlp]
+    traces:
       receivers: [otlp]
-      processors: [batch, resource]
-      exporters: [otlphttp]
-    logs/docker:
-      receivers: [filelog]
-      processors: [batch, resource]
-      exporters: [otlphttp]
+      processors: [batch, resourcedetection]
+      exporters: [otlp]
+    logs:
+      receivers: [otlp, filelog]
+      processors: [batch, resourcedetection]
+      exporters: [otlp]
