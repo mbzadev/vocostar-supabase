@@ -31,7 +31,7 @@ receivers:
           #   username: "service_role"
           #   password: "${env:SUPABASE_SERVICE_ROLE_JWT}"
           static_configs:
-            - targets: ["${env:SITE_URL}"]
+            - targets: ["${env:SUPABASE_METRICS_TARGET}"]
               labels:
                 group: "MyGroupLabel"
   filelog:

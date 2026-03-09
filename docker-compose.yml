@@ -498,7 +498,7 @@ services:
     environment:
       SIGNOZ_ENDPOINT: ${SIGNOZ_ENDPOINT:-ingest.automatiser.app:443}
       SIGNOZ_INGESTION_KEY: ${SIGNOZ_INGESTION_KEY:-}
-      SITE_URL: ${SITE_URL:-}
+      SUPABASE_METRICS_TARGET: ${SUPABASE_METRICS_TARGET:-db.vocostar.com:443}
       SUPABASE_SERVICE_ROLE_JWT: ${SUPABASE_SERVICE_ROLE_JWT:-}
     depends_on:
       vector:
