@@ -60,23 +60,22 @@ processors:
     detectors: [env, system, docker]
 
 exporters:
-  otlp_grpc:
-    endpoint: ${env:SIGNOZ_ENDPOINT}
+  otlphttp:
+    endpoint: https://${env:SIGNOZ_ENDPOINT}
     tls:
       insecure: false
-    # headers section is removed to prevent crash if SIGNOZ_INGESTION_KEY is empty
 
 service:
   pipelines:
     metrics:
       receivers: [otlp, hostmetrics, prometheus]
       processors: [batch, resourcedetection]
-      exporters: [otlp_grpc]
+      exporters: [otlphttp]
     traces:
       receivers: [otlp]
       processors: [batch, resourcedetection]
-      exporters: [otlp_grpc]
+      exporters: [otlphttp]
     logs:
       receivers: [otlp, filelog]
       processors: [batch, resourcedetection]
-      exporters: [otlp_grpc]
+      exporters: [otlphttp]
