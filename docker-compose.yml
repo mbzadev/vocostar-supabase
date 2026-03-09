@@ -486,14 +486,17 @@ services:
     restart: unless-stopped
     user: "0"
     expose:
+      - 4317
       - 4318
     volumes:
       - ./volumes/otel-collector/config.yml:/etc/otelcol-contrib/config.yaml:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - ${DOCKER_SOCKET_LOCATION}:/var/run/docker.sock:ro
     environment:
-      SIGNOZ_ENDPOINT: ${SIGNOZ_ENDPOINT:-https://ingest.automatiser.app}
+      SIGNOZ_ENDPOINT: ${SIGNOZ_ENDPOINT:-ingest.automatiser.app:443}
       SIGNOZ_INGESTION_KEY: ${SIGNOZ_INGESTION_KEY:-}
+      SUPABASE_PROJECT_URL: ${SUPABASE_PROJECT_URL:-}
+      SUPABASE_SERVICE_ROLE_JWT: ${SUPABASE_SERVICE_ROLE_JWT:-}
     depends_on:
       vector:
         condition: service_started

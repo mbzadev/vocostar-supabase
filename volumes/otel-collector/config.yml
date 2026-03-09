@@ -6,6 +6,19 @@ receivers:
         endpoint: 0.0.0.0:4318
 
   # Also collect Docker container logs directly (backup/additional source)
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: "MySupabaseJob"
+          metrics_path: "/customer/v1/privileged/metrics"
+          scheme: https
+          basic_auth:
+            username: "service_role"
+            password: "${env:SUPABASE_SERVICE_ROLE_JWT}"
+          static_configs:
+            - targets: ["${env:SUPABASE_PROJECT_URL}"]
+              labels:
+                group: "MyGroupLabel"
   filelog:
     include:
       - /var/lib/docker/containers/*/*.log
