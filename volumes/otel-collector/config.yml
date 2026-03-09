@@ -56,7 +56,7 @@ processors:
     send_batch_size: 1000
     timeout: 10s
   resourcedetection:
-    detectors: [env, system, docker]
+    detectors: [env, host, system, docker]
 
 exporters:
   otlp:

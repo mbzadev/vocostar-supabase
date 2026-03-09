@@ -482,7 +482,7 @@ services:
   # OpenTelemetry Collector - forwards container logs to SigNoz
   otel-collector:
     container_name: supabase-otel-collector
-    image: otel/opentelemetry-collector-contrib:0.97.0
+    image: otel/opentelemetry-collector-contrib:0.147.0
     restart: unless-stopped
     user: "0"
     expose:
