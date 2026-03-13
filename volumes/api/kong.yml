@@ -282,15 +282,12 @@ services:
       #      - ::1
       #    deny: []
 
-  ## Functions Manager Deploy
-  ## Intercepts POST /api/v1/projects/{ref}/functions and routes to our custom service
-  - name: functions-manager-deploy
+  ## Functions Manager - handles deploy, list, secrets, stats, invocations
+  - name: functions-manager
     url: http://functions-manager:8085
     routes:
-      - name: functions-manager-deploy
+      - name: functions-manager-all
         strip_path: false
-        methods:
-          - POST
         paths:
           - /api/v1/projects/
     plugins:
