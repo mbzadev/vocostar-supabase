@@ -55,6 +55,10 @@ services:
       # NEXT_ANALYTICS_BACKEND_PROVIDER: bigquery
       SNIPPETS_MANAGEMENT_FOLDER: /app/snippets
       EDGE_FUNCTIONS_MANAGEMENT_FOLDER: /app/edge-functions
+      # Force IS_PLATFORM=true so Edge Functions UI buttons are shown
+      # NEXT_PUBLIC_API_URL=/api keeps all API calls local (self-hosted)
+      NEXT_PUBLIC_IS_PLATFORM: "true"
+      NEXT_PUBLIC_API_URL: /api
     volumes:
       - ./volumes/snippets:/app/snippets:Z
       - ./volumes/functions:/app/edge-functions:Z
