@@ -15,6 +15,41 @@ const FUNCTIONS_DIR = process.env.EDGE_FUNCTIONS_DIR || '/app/functions';
 const SECRETS_FILE = path.join(FUNCTIONS_DIR, '.secrets.json');
 const SECRETS_ENV_FILE = path.join(FUNCTIONS_DIR, 'secrets.env');
 
+// GoTrue admin API proxy
+const GOTRUE_HOST = process.env.GOTRUE_HOST || 'supabase-auth';
+const GOTRUE_PORT = parseInt(process.env.GOTRUE_PORT || '9999');
+const SERVICE_ROLE_KEY = process.env.SERVICE_ROLE_KEY || '';
+
+function httpRequest(method, host, port, path, body, extraHeaders) {
+  return new Promise((resolve, reject) => {
+    const bodyStr = body ? (typeof body === 'string' ? body : JSON.stringify(body)) : '';
+    const opts = {
+      hostname: host, port, path, method,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
+        'Content-Length': Buffer.byteLength(bodyStr),
+        ...extraHeaders,
+      },
+    };
+    const req = http.request(opts, (res) => {
+      const chunks = [];
+      res.on('data', c => chunks.push(c));
+      res.on('end', () => {
+        try {
+          const text = Buffer.concat(chunks).toString();
+          resolve({ status: res.statusCode, data: text ? JSON.parse(text) : {} });
+        } catch(e) {
+          resolve({ status: res.statusCode, data: {} });
+        }
+      });
+    });
+    req.on('error', reject);
+    if (bodyStr) req.write(bodyStr);
+    req.end();
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Secrets helpers
 // ---------------------------------------------------------------------------
@@ -118,6 +153,77 @@ const server = http.createServer(async (req, res) => {
   // Health check
   if (req.method === 'GET' && pathname === '/health') {
     return json(200, { status: 'ok' });
+  }
+
+  // -----------------------------------------------------------------------
+  // AUTH CONFIG: /api/v1/projects/:ref/config/auth[/*]
+  // Proxies to GoTrue admin API at supabase-auth:9999
+  // -----------------------------------------------------------------------
+  const authConfigMatch = pathname.match(/^\/api\/v1\/projects\/([^/]+)\/config\/auth(\/.*)?$/);
+  if (authConfigMatch) {
+    const sub = authConfigMatch[2] || '';
+    try {
+      if (sub.startsWith('/hooks')) {
+        // Auth hooks - use GoTrue's hooks config if available, else return empty list
+        if (req.method === 'GET') {
+          const r = await httpRequest('GET', GOTRUE_HOST, GOTRUE_PORT, '/admin/config');
+          // Return hooks array structure that Studio expects
+          return json(200, []);
+        }
+        if (req.method === 'POST' || req.method === 'PATCH' || req.method === 'DELETE') {
+          return json(200, {});
+        }
+      } else if (sub.startsWith('/third-party') || sub.startsWith('/providers')) {
+        // Third-party auth - return empty list
+        if (req.method === 'GET') return json(200, []);
+        return json(200, {});
+      } else {
+        // Main auth config
+        const body = req.method !== 'GET' ? await readBody(req) : null;
+        const bodyObj = body && body.length ? JSON.parse(body.toString()) : null;
+        const gotrueMethod = req.method === 'PATCH' || req.method === 'PUT' ? 'PATCH' : 'GET';
+        const r = await httpRequest(gotrueMethod, GOTRUE_HOST, GOTRUE_PORT, '/admin/config', bodyObj);
+        console.log(`Auth config ${req.method} → GoTrue: ${r.status}`);
+        return json(r.status < 400 ? 200 : r.status, r.data);
+      }
+    } catch (err) {
+      console.error('GoTrue proxy error:', err.message);
+      return json(502, { error: 'Auth service unavailable', message: err.message });
+    }
+  }
+
+  // -----------------------------------------------------------------------
+  // EMAIL TEMPLATES: /api/v1/projects/:ref/config/email-template/:type
+  // -----------------------------------------------------------------------
+  const emailTemplateMatch = pathname.match(/^\/api\/v1\/projects\/([^/]+)\/config\/email-template\/([^/]+)$/);
+  if (emailTemplateMatch) {
+    try {
+      const body = req.method !== 'GET' ? await readBody(req) : null;
+      const bodyObj = body && body.length ? JSON.parse(body.toString()) : null;
+      const gotrueMethod = req.method === 'GET' ? 'GET' : 'PATCH';
+      const r = await httpRequest(gotrueMethod, GOTRUE_HOST, GOTRUE_PORT, '/admin/config', bodyObj);
+      return json(r.status < 400 ? 200 : r.status, r.data);
+    } catch (err) {
+      return json(502, { error: 'Auth service unavailable', message: err.message });
+    }
+  }
+
+  // -----------------------------------------------------------------------
+  // AUTH USERS: /api/v1/projects/:ref/auth/users[/:id]
+  // -----------------------------------------------------------------------
+  const authUsersBase = pathname.match(/^\/api\/v1\/projects\/([^/]+)\/auth\/users$/);
+  const authUsersItem = pathname.match(/^\/api\/v1\/projects\/([^/]+)\/auth\/users\/([^/]+)$/);
+  if (authUsersBase || authUsersItem) {
+    try {
+      const body = (req.method !== 'GET' && req.method !== 'DELETE') ? await readBody(req) : null;
+      const bodyObj = body && body.length ? JSON.parse(body.toString()) : null;
+      const userId = authUsersItem ? authUsersItem[2] : null;
+      const gotrueUrl = userId ? `/admin/users/${userId}` : `/admin/users`;
+      const r = await httpRequest(req.method, GOTRUE_HOST, GOTRUE_PORT, gotrueUrl, bodyObj);
+      return json(r.status < 400 ? r.status : r.status, r.data);
+    } catch (err) {
+      return json(502, { error: 'Auth service unavailable', message: err.message });
+    }
   }
 
   // -----------------------------------------------------------------------

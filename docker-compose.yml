@@ -78,6 +78,9 @@ services:
     working_dir: /app
     environment:
       - EDGE_FUNCTIONS_DIR=/app/functions
+      - SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY}
+      - GOTRUE_HOST=supabase-auth
+      - GOTRUE_PORT=9999
     command: ["node", "index.js"]
 
   kong:
