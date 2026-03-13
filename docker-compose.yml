@@ -58,14 +58,11 @@ services:
     volumes:
       - ./volumes/snippets:/app/snippets:Z
       - ./volumes/functions:/app/edge-functions:Z
-    entrypoint: ["/bin/sh", "-c"]
     command:
+      - /bin/sh
+      - -c
       - |
-        # Surgical patch: patch only conditional IS_PLATFORM usage (&&, ?), not query enabled flags
-        # Python script is base64-encoded to avoid YAML/shell escaping issues
-        echo aW1wb3J0IHJlLCBnbG9iCkRFUExPWV9TVFJJTkdTID0gWyJEZXBsb3kgYSBuZXcgZnVuY3Rpb24iXQpUQUJTX1NUUklOR1MgPSBbIkludm9jYXRpb25zIiwgIkVkZ2UgRnVuY3Rpb24gTG9ncyIsICJmdW5jdGlvbiBub3QgZm91bmQiLCAiRWRnZSBGdW5jdGlvbiBTZWNyZXRzIiwgIkRlbGV0ZSB0aGUgZnVuY3Rpb24iXQpwYXRjaGVkID0gMApmb3IgZiBpbiBnbG9iLmdsb2IoIi9hcHAvYXBwcy9zdHVkaW8vLm5leHQvc3RhdGljL2NodW5rcy8qLmpzIik6CiAgICB0cnk6CiAgICAgICAgYyA9IG9wZW4oZikucmVhZCgpCiAgICAgICAgaWYgIklTX1BMQVRGT1JNIiBub3QgaW4gYzoKICAgICAgICAgICAgY29udGludWUKICAgICAgICBpc19kZXBsb3kgPSBhbnkocyBpbiBjIGZvciBzIGluIERFUExPWV9TVFJJTkdTKQogICAgICAgIGlzX3RhYnMgPSBhbnkocyBpbiBjIGZvciBzIGluIFRBQlNfU1RSSU5HUykKICAgICAgICBpZiBub3QgKGlzX2RlcGxveSBvciBpc190YWJzKToKICAgICAgICAgICAgY29udGludWUKICAgICAgICBvcmlnID0gYwogICAgICAgICMgT25seSByZXBsYWNlIElTX1BMQVRGT1JNIHdoZW4gdXNlZCBpbiBib29sZWFuIGV4cHJlc3Npb25zICgmJiBvciB0ZXJuYXJ5ID8pCiAgICAgICAgIyBUaGlzIHByZXNlcnZlcyB7ZW5hYmxlZDprLklTX1BMQVRGT1JNfSBzbyBxdWVyaWVzIGFyZW4ndCB3cm9uZ2x5IGVuYWJsZWQKICAgICAgICBjID0gcmUuc3ViKHInW0EtWmEtel8kXStcLklTX1BMQVRGT1JNKD89JiYpJywgJ3RydWUnLCBjKQogICAgICAgIGMgPSByZS5zdWIocidbQS1aYS16XyRdK1wuSVNfUExBVEZPUk0oPz1cPyknLCAndHJ1ZScsIGMpCiAgICAgICAgYyA9IHJlLnN1YihyJyFbQS1aYS16XyRdK1wuSVNfUExBVEZPUk0oPz1bJnwsKVxzXSknLCAnZmFsc2UnLCBjKQogICAgICAgIGlmIGMgIT0gb3JpZzoKICAgICAgICAgICAgb3BlbihmLCAidyIpLndyaXRlKGMpCiAgICAgICAgICAgIHByaW50KCJQYXRjaGVkOiAiICsgZiwgZmx1c2g9VHJ1ZSkKICAgICAgICAgICAgcGF0Y2hlZCArPSAxCiAgICBleGNlcHQgRXhjZXB0aW9uIGFzIGU6CiAgICAgICAgcHJpbnQoIkVycm9yOiAiICsgc3RyKGUpLCBmbHVzaD1UcnVlKQpwcmludCgiRG9uZTogIiArIHN0cihwYXRjaGVkKSArICIgY2h1bmsocykgcGF0Y2hlZCIsIGZsdXNoPVRydWUpCg== | base64 -d | python3
         exec docker-entrypoint.sh node apps/studio/server.js
-
 
   functions-manager:
     container_name: supabase-functions-manager
