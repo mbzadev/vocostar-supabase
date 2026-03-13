@@ -69,7 +69,7 @@ services:
 
   functions-manager:
     container_name: supabase-functions-manager
-    image: ghcr.io/mbzadev/node:20-alpine
+    image: node:20-alpine
     restart: unless-stopped
     ports:
       - "8085:8085"
@@ -487,7 +487,7 @@ services:
 
   vector:
     container_name: supabase-vector
-    image: ghcr.io/mbzadev/vector:0.53.0-alpine
+    image: timberio/vector:0.53.0-alpine
     restart: unless-stopped
     volumes:
       - ./volumes/logs/vector.yml:/etc/vector/vector.yml:ro,z
