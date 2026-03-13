@@ -133,6 +133,24 @@ const server = http.createServer(async (req, res) => {
     return json(200, list);
   }
 
+  if (secretsBase && req.method === 'DELETE') {
+    // Bulk delete: accepts [{name:"KEY"},...] in body
+    try {
+      const body = await readBody(req);
+      const data = JSON.parse(body.toString());
+      const secrets = loadSecrets();
+      const entries = Array.isArray(data) ? data : [data];
+      for (const { name } of entries) {
+        if (name) delete secrets[name];
+      }
+      saveSecrets(secrets);
+      console.log(`Bulk deleted ${entries.length} secret(s)`);
+      return json(200, []);
+    } catch (err) {
+      return json(500, { error: err.message });
+    }
+  }
+
   if (secretsBase && (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH')) {
     // Accepts: [{name, value}, ...] or {name, value}
     try {
@@ -325,6 +343,33 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, { 'Content-Type': `multipart/form-data; boundary=${boundary}` });
       res.end(multipart);
       return;
+    }
+
+    // PUT /functions/:slug/body - save edited code (Studio code editor save)
+    if ((req.method === 'PUT' || req.method === 'POST') && sub === '/body') {
+      const functionDir = path.join(FUNCTIONS_DIR, slug);
+      if (!fs.existsSync(functionDir)) return json(404, { error: 'Function not found' });
+      try {
+        const body = await readBody(req);
+        const contentType = req.headers['content-type'] || '';
+        const boundaryMatch = contentType.match(/boundary=(.+)/i);
+        if (boundaryMatch) {
+          const parsed = parseMultipart(boundaryMatch[1].trim(), body);
+          for (const file of parsed.files) {
+            fs.writeFileSync(path.join(functionDir, file.originalname), file.buffer);
+            console.log(`Updated: ${path.join(functionDir, file.originalname)}`);
+          }
+        }
+        console.log(`Code updated for function: ${slug}`);
+        return json(200, {
+          id: crypto.createHash('md5').update(slug).digest('hex'),
+          slug, name: loadMeta(slug).name || slug,
+          status: 'ACTIVE',
+          updated_at: Date.now(),
+        });
+      } catch (err) {
+        return json(500, { error: err.message });
+      }
     }
 
     // GET /functions/:slug/invocations - for Invocations tab
