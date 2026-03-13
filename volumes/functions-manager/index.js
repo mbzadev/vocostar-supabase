@@ -157,38 +157,98 @@ const server = http.createServer(async (req, res) => {
 
   // -----------------------------------------------------------------------
   // AUTH CONFIG: /api/v1/projects/:ref/config/auth[/*]
-  // Proxies to GoTrue admin API at supabase-auth:9999
+  // Reads GoTrue config from ENV vars (GoTrue has no /admin/config API)
   // -----------------------------------------------------------------------
+  const AUTH_CONFIG_FILE = path.join(FUNCTIONS_DIR, '.auth-config.json');
+
+  function loadAuthConfigOverlay() {
+    try {
+      if (fs.existsSync(AUTH_CONFIG_FILE)) return JSON.parse(fs.readFileSync(AUTH_CONFIG_FILE, 'utf8'));
+    } catch (e) { /* ignore */ }
+    return {};
+  }
+
+  function getAuthConfig() {
+    const env = process.env;
+    const base = {
+      site_url: env.SITE_URL || '',
+      uri_allow_list: env.ADDITIONAL_REDIRECT_URLS || env.URI_ALLOW_LIST || '',
+      disable_signup: env.DISABLE_SIGNUP === 'true',
+      enable_signup: env.DISABLE_SIGNUP !== 'true',
+      jwt_exp: parseInt(env.JWT_EXPIRY || env.JWT_EXP || '3600'),
+      mailer_autoconfirm: env.ENABLE_EMAIL_AUTOCONFIRM === 'true',
+      mailer_secure_email_change_enabled: env.MAILER_SECURE_EMAIL_CHANGE_ENABLED !== 'false',
+      external_email_enabled: env.ENABLE_EMAIL_SIGNUP !== 'false',
+      external_phone_enabled: env.ENABLE_PHONE_SIGNUP === 'true',
+      phone_autoconfirm: env.ENABLE_PHONE_AUTOCONFIRM === 'true',
+      smtp_admin_email: env.SMTP_ADMIN_EMAIL || '',
+      smtp_host: env.SMTP_HOST || '',
+      smtp_port: env.SMTP_PORT || '465',
+      smtp_user: env.SMTP_USER || '',
+      smtp_pass: env.SMTP_PASS || '',
+      smtp_sender_name: env.SMTP_SENDER_NAME || '',
+      smtp_max_frequency: parseInt(env.SMTP_MAX_FREQUENCY || '60'),
+      rate_limit_email_sent: parseInt(env.RATE_LIMIT_EMAIL_SENT || '2'),
+      rate_limit_sms_sent: parseInt(env.RATE_LIMIT_SMS_SENT || '30'),
+      rate_limit_anonymous_users: parseInt(env.RATE_LIMIT_ANONYMOUS_USERS || '0'),
+      rate_limit_token_refresh: parseInt(env.RATE_LIMIT_TOKEN_REFRESH || '150'),
+      rate_limit_otp: parseInt(env.RATE_LIMIT_OTP || '30'),
+      external_anonymous_users_enabled: env.ENABLE_ANONYMOUS_USERS === 'true',
+      // Google
+      external_google_enabled: env.GOOGLE_ENABLED === 'true',
+      external_google_client_id: (env.GOOGLE_CLIENT_ID || '').split(',')[0].trim(),
+      external_google_secret: env.GOOGLE_SECRET || '',
+      // Apple
+      external_apple_enabled: env.APPLE_ENABLED === 'true',
+      external_apple_client_id: env.APPLE_CLIENT_ID || '',
+      external_apple_secret: env.APPLE_SECRET || '',
+      // MFA
+      mfa_totp_enroll_enabled: env.MFA_TOTP_ENROLL_ENABLED !== 'false',
+      mfa_totp_verify_enabled: env.MFA_TOTP_VERIFY_ENABLED !== 'false',
+      mfa_phone_enroll_enabled: env.MFA_PHONE_ENROLL_ENABLED === 'true',
+      mfa_phone_verify_enabled: env.MFA_PHONE_VERIFY_ENABLED === 'true',
+      // Sessions
+      sessions_timebox: parseInt(env.SESSIONS_TIMEBOX || '0'),
+      sessions_inactivity_timeout: parseInt(env.SESSIONS_INACTIVITY_TIMEOUT || '0'),
+      mailer_otp_exp: parseInt(env.MAILER_OTP_EXP || '3600'),
+      sms_otp_exp: parseInt(env.SMS_OTP_EXP || '60'),
+      sms_otp_length: parseInt(env.SMS_OTP_LENGTH || '6'),
+      password_min_length: parseInt(env.PASSWORD_MIN_LENGTH || '6'),
+    };
+    // Merge overlay (saved changes)
+    return Object.assign({}, base, loadAuthConfigOverlay());
+  }
+
   const authConfigMatch = pathname.match(/^\/api\/v1\/projects\/([^/]+)\/config\/auth(\/.*)?$/);
   if (authConfigMatch) {
     const sub = authConfigMatch[2] || '';
-    try {
-      if (sub.startsWith('/hooks')) {
-        // Auth hooks - use GoTrue's hooks config if available, else return empty list
-        if (req.method === 'GET') {
-          const r = await httpRequest('GET', GOTRUE_HOST, GOTRUE_PORT, '/admin/config');
-          // Return hooks array structure that Studio expects
-          return json(200, []);
-        }
-        if (req.method === 'POST' || req.method === 'PATCH' || req.method === 'DELETE') {
-          return json(200, {});
-        }
-      } else if (sub.startsWith('/third-party') || sub.startsWith('/providers')) {
-        // Third-party auth - return empty list
-        if (req.method === 'GET') return json(200, []);
-        return json(200, {});
-      } else {
-        // Main auth config
-        const body = req.method !== 'GET' ? await readBody(req) : null;
-        const bodyObj = body && body.length ? JSON.parse(body.toString()) : null;
-        const gotrueMethod = req.method === 'PATCH' || req.method === 'PUT' ? 'PATCH' : 'GET';
-        const r = await httpRequest(gotrueMethod, GOTRUE_HOST, GOTRUE_PORT, '/admin/config', bodyObj);
-        console.log(`Auth config ${req.method} → GoTrue: ${r.status}`);
-        return json(r.status < 400 ? 200 : r.status, r.data);
+    if (sub.startsWith('/hooks')) {
+      if (req.method === 'GET') return json(200, []);
+      return json(200, {});
+    } else if (sub.startsWith('/third-party') || sub.startsWith('/providers')) {
+      if (req.method === 'GET') return json(200, []);
+      return json(200, {});
+    } else {
+      // Main auth config
+      if (req.method === 'GET') {
+        const cfg = getAuthConfig();
+        console.log('Auth config GET → env-based config');
+        return json(200, cfg);
       }
-    } catch (err) {
-      console.error('GoTrue proxy error:', err.message);
-      return json(502, { error: 'Auth service unavailable', message: err.message });
+      if (req.method === 'PATCH' || req.method === 'PUT') {
+        try {
+          const body = await readBody(req);
+          const updates = JSON.parse(body.toString());
+          const overlay = loadAuthConfigOverlay();
+          const merged = Object.assign({}, overlay, updates);
+          fs.writeFileSync(AUTH_CONFIG_FILE, JSON.stringify(merged, null, 2));
+          console.log(`Auth config PATCH → saved ${Object.keys(updates).length} field(s)`);
+          return json(200, getAuthConfig());
+        } catch (err) {
+          return json(500, { error: err.message });
+        }
+      }
+      return json(200, getAuthConfig());
     }
   }
 
@@ -197,15 +257,24 @@ const server = http.createServer(async (req, res) => {
   // -----------------------------------------------------------------------
   const emailTemplateMatch = pathname.match(/^\/api\/v1\/projects\/([^/]+)\/config\/email-template\/([^/]+)$/);
   if (emailTemplateMatch) {
-    try {
-      const body = req.method !== 'GET' ? await readBody(req) : null;
-      const bodyObj = body && body.length ? JSON.parse(body.toString()) : null;
-      const gotrueMethod = req.method === 'GET' ? 'GET' : 'PATCH';
-      const r = await httpRequest(gotrueMethod, GOTRUE_HOST, GOTRUE_PORT, '/admin/config', bodyObj);
-      return json(r.status < 400 ? 200 : r.status, r.data);
-    } catch (err) {
-      return json(502, { error: 'Auth service unavailable', message: err.message });
+    const templateType = emailTemplateMatch[2];
+    const templateFile = path.join(FUNCTIONS_DIR, `.email-template-${templateType}.json`);
+    if (req.method === 'GET') {
+      try {
+        if (fs.existsSync(templateFile)) return json(200, JSON.parse(fs.readFileSync(templateFile, 'utf8')));
+      } catch(e) { /* ignore */ }
+      return json(200, { subject: '', content: '' });
     }
+    if (req.method === 'PATCH' || req.method === 'PUT') {
+      try {
+        const body = await readBody(req);
+        fs.writeFileSync(templateFile, body.toString());
+        return json(200, JSON.parse(body.toString()));
+      } catch (err) {
+        return json(500, { error: err.message });
+      }
+    }
+    return json(200, {});
   }
 
   // -----------------------------------------------------------------------
