@@ -370,6 +370,26 @@ services:
       VERIFY_JWT: "${FUNCTIONS_VERIFY_JWT}"
     command: [ "start", "--main-service", "/home/deno/functions/main" ]
 
+  # Fix: short-lived init container that syncs the Logflare API key in _analytics.users
+  # before the analytics container starts. Uses the postgres image which has psql available.
+  logflare-init:
+    container_name: supabase-logflare-init
+    image: supabase/postgres:15.8.1.085
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      LOGFLARE_PUBLIC_ACCESS_TOKEN: ${LOGFLARE_PUBLIC_ACCESS_TOKEN:-${LOGFLARE_API_KEY}}
+    command:
+      - /bin/sh
+      - -c
+      - |
+        echo "Syncing Logflare API key in _analytics.users..."
+        psql "postgresql://supabase_admin:$$PGPASSWORD@${POSTGRES_HOST}:${POSTGRES_PORT}/_supabase" \
+          -c "UPDATE _analytics.users SET api_key = '$$LOGFLARE_PUBLIC_ACCESS_TOKEN' WHERE api_key IS NOT NULL;" && echo "Done." || echo "Table may not exist yet on first boot, skipping."
+
   analytics:
     container_name: supabase-analytics
     image: supabase/logflare:1.31.2
@@ -392,6 +412,8 @@ services:
       db:
         # Disable this if you are using an external Postgres database
         condition: service_healthy
+      logflare-init:
+        condition: service_completed_successfully
     environment:
       LOGFLARE_NODE_HOST: 127.0.0.1
       DB_USERNAME: supabase_admin
