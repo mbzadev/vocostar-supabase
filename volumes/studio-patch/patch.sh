@@ -10,42 +10,71 @@ if [ ! -d "$CHUNKS_DIR" ]; then
     exit 1
 fi
 
-PATCHED=0
-for file in $(grep -rl "Deploy a new function" "$CHUNKS_DIR"); do
-    echo "Found Edge Functions chunk: $file"
-
-    # The JS file contains literal && (0x26 0x26 bytes)
-    # We need to replace X.IS_PLATFORM&&  with true&&
-    # and !X.IS_PLATFORM&&  with false&&
-    # Using Python for reliable cross-platform string replacement
+# -------------------------------------------------------
+# STEP 1: Patch constants module
+# Force IS_PLATFORM=true (enables the Deploy button and other platform features)
+# Keep API_URL="/api" (necessary for self-hosted - no Supabase Platform API)
+# -------------------------------------------------------
+echo "Step 1: Patching constants module..."
+for file in $(grep -rl '"IS_PLATFORM",0,' "$CHUNKS_DIR"); do
+    echo "  Found constants chunk: $file"
     python3 - "$file" << 'PYEOF'
-import sys
-import re
-
+import sys, re
 filepath = sys.argv[1]
 with open(filepath, 'r', encoding='utf-8') as f:
     content = f.read()
+before = content
 
-# Count matches before
-before = len(re.findall(r'[A-Za-z_$]+\.IS_PLATFORM&&', content))
-print(f"  IS_PLATFORM&& occurrences: {before}")
+# Force IS_PLATFORM=true: "true"===env.NEXT_PUBLIC_IS_PLATFORM -> true
+content = re.sub(
+    r'"true"===([a-zA-Z_$]+\.default\.env\.NEXT_PUBLIC_IS_PLATFORM)',
+    r'true',
+    content
+)
 
-# Replace X.IS_PLATFORM&& -> true&&  (show IS_PLATFORM=true elements)
-content = re.sub(r'([A-Za-z_$]+)\.IS_PLATFORM&&', r'true&&', content)
-# Replace !X.IS_PLATFORM&& -> false&&  (hide IS_PLATFORM=false elements)  
-content = re.sub(r'!([A-Za-z_$]+)\.IS_PLATFORM&&', r'false&&', content)
+# Keep API_URL="/api": X=Y?env.NEXT_PUBLIC_API_URL:"/api" -> X="/api"
+content = re.sub(
+    r'([a-z])=([a-z])\?([a-zA-Z_$]+\.default\.env\.NEXT_PUBLIC_API_URL):"\/api"',
+    r'\1="/api"',
+    content
+)
 
 with open(filepath, 'w', encoding='utf-8') as f:
     f.write(content)
 
-after = len(re.findall(r'[A-Za-z_$]+\.IS_PLATFORM&&', content))
-print(f"  IS_PLATFORM&& occurrences after: {after}")
-print(f"  Replacements made: {before - after}")
+if content != before:
+    print("  Constants patched: IS_PLATFORM=true, API_URL=/api")
+else:
+    print("  No changes (pattern may differ in this version)")
 PYEOF
-
-    PATCHED=$((PATCHED + 1))
-    echo "Patched: $file"
 done
 
-echo "=== Patch applied to $PATCHED chunk(s). Starting Studio... ==="
+# -------------------------------------------------------
+# STEP 2: Patch UI chunk - handle remaining IS_PLATFORM&& conditions
+# -------------------------------------------------------
+echo "Step 2: Patching UI (Deploy button) chunk..."
+for file in $(grep -rl "Deploy a new function" "$CHUNKS_DIR"); do
+    echo "  Found UI chunk: $file"
+    python3 - "$file" << 'PYEOF'
+import sys, re
+filepath = sys.argv[1]
+with open(filepath, 'r', encoding='utf-8') as f:
+    content = f.read()
+
+n1 = len(re.findall(r'[A-Za-z_$]+\.IS_PLATFORM&&', content))
+n2 = len(re.findall(r'![A-Za-z_$]+\.IS_PLATFORM&&', content))
+print(f"  IS_PLATFORM&& : {n1}, !IS_PLATFORM&& : {n2}")
+
+# X.IS_PLATFORM&& -> true&&  (show platform-only elements)
+content = re.sub(r'([A-Za-z_$]+)\.IS_PLATFORM&&', r'true&&', content)
+# !X.IS_PLATFORM&& -> false&&  (hide self-hosted fallbacks)
+content = re.sub(r'!([A-Za-z_$]+)\.IS_PLATFORM&&', r'false&&', content)
+
+with open(filepath, 'w', encoding='utf-8') as f:
+    f.write(content)
+print("  UI chunk patched")
+PYEOF
+done
+
+echo "=== Patch complete. Starting Studio... ==="
 exec docker-entrypoint.sh node apps/studio/server.js
