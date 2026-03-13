@@ -59,7 +59,8 @@ services:
       - ./volumes/snippets:/app/snippets:Z
       - ./volumes/functions:/app/edge-functions:Z
       - ./volumes/studio-patch/patch.sh:/app/patch.sh:ro
-    command: [ "/bin/sh", "-c", "/app/patch.sh node apps/studio/server.js" ]
+    entrypoint: [ "/bin/sh", "-c", "/app/patch.sh docker-entrypoint.sh node apps/studio/server.js" ]
+
 
   functions-manager:
     container_name: supabase-functions-manager
