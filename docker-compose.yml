@@ -390,7 +390,10 @@ services:
       SUPABASE_DB_URL: postgresql://postgres:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
       # TODO: Allow configuring VERIFY_JWT per function. This PR might help: https://github.com/supabase/cli/pull/786
       VERIFY_JWT: "${FUNCTIONS_VERIFY_JWT}"
-    command: ["start", "--main-service", "/home/deno/functions/main", "--env-file", "/home/deno/functions/secrets.env"]
+    command: ["start", "--main-service", "/home/deno/functions/main"]
+    env_file:
+      - path: ./volumes/functions/secrets.env
+        required: false
 
   analytics:
     container_name: supabase-analytics
