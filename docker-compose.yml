@@ -55,15 +55,38 @@ services:
       # NEXT_ANALYTICS_BACKEND_PROVIDER: bigquery
       SNIPPETS_MANAGEMENT_FOLDER: /app/snippets
       EDGE_FUNCTIONS_MANAGEMENT_FOLDER: /app/edge-functions
-      # Force IS_PLATFORM=true so Edge Functions UI buttons are shown
-      # NEXT_PUBLIC_API_URL=/api keeps all API calls local (self-hosted)
-      NEXT_PUBLIC_IS_PLATFORM: "true"
-      NEXT_PUBLIC_API_URL: /api
     volumes:
       - ./volumes/snippets:/app/snippets:Z
       - ./volumes/functions:/app/edge-functions:Z
-      - ./volumes/studio-patch/patch.sh:/app/patch.sh:ro
-    entrypoint: ["/bin/sh", "/app/patch.sh"]
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        python3 -c "
+        import re, glob, sys
+        chunks = glob.glob('/app/apps/studio/.next/static/chunks/*.js')
+        patched = 0
+        for f in chunks:
+            try:
+                c = open(f).read()
+                if 'IS_PLATFORM' not in c:
+                    continue
+                orig = c
+                # 1. In constants chunk: force IS_PLATFORM=true
+                c = re.sub(r'\"true\"===[a-zA-Z_\$]+\.default\.env\.NEXT_PUBLIC_IS_PLATFORM', 'true', c)
+                # 2. In constants chunk: keep API_URL=/api for self-hosted
+                c = re.sub(r'([a-z])=([a-z])\?[a-zA-Z_\$]+\.default\.env\.NEXT_PUBLIC_API_URL:\"\/api\"', r'\1=\"/api\"', c)
+                # 3. In UI chunk: X.IS_PLATFORM&& -> true&&
+                c = re.sub(r'[A-Za-z_\$]+\.IS_PLATFORM&&', r'true&&', c)
+                # 4. In UI chunk: !X.IS_PLATFORM&& -> false&&
+                c = re.sub(r'![A-Za-z_\$]+\.IS_PLATFORM&&', r'false&&', c)
+                if c != orig:
+                    open(f, 'w').write(c)
+                    patched += 1
+            except Exception as e:
+                print('Error patching %s: %s' % (f, e), flush=True)
+        print('IS_PLATFORM patch: %d files modified' % patched, flush=True)
+        "
+        exec docker-entrypoint.sh node apps/studio/server.js
 
 
   functions-manager:
