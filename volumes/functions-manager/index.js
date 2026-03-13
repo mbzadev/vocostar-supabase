@@ -255,6 +255,43 @@ const server = http.createServer(async (req, res) => {
       });
     }
 
+    // GET /functions/:slug/body - for Code tab (returns multipart with source files)
+    if (req.method === 'GET' && sub === '/body') {
+      const functionDir = path.join(FUNCTIONS_DIR, slug);
+      if (!fs.existsSync(functionDir)) return json(404, { error: 'Function not found' });
+
+      const boundary = '----SupabaseFMBoundary' + crypto.randomBytes(8).toString('hex');
+      const allFiles = fs.readdirSync(functionDir).filter(f => {
+        const fp = path.join(functionDir, f);
+        return !f.startsWith('.') && fs.statSync(fp).isFile();
+      });
+
+      const metadataObj = {
+        entrypoint_path: `file:///home/deno/functions/${slug}/index.ts`,
+        import_map_path: null,
+        version: 1,
+      };
+
+      let multipart = '';
+      multipart += `--${boundary}\r\n`;
+      multipart += `Content-Disposition: form-data; name="metadata"\r\n`;
+      multipart += `Content-Type: application/json\r\n\r\n`;
+      multipart += JSON.stringify(metadataObj) + '\r\n';
+
+      for (const file of allFiles) {
+        const content = fs.readFileSync(path.join(functionDir, file), 'utf8');
+        multipart += `--${boundary}\r\n`;
+        multipart += `Content-Disposition: form-data; name="file"; filename="${file}"\r\n`;
+        multipart += `Content-Type: text/plain\r\n\r\n`;
+        multipart += content + '\r\n';
+      }
+      multipart += `--${boundary}--\r\n`;
+
+      res.writeHead(200, { 'Content-Type': `multipart/form-data; boundary=${boundary}` });
+      res.end(multipart);
+      return;
+    }
+
     // GET /functions/:slug/invocations - for Invocations tab
     if (req.method === 'GET' && sub === '/invocations') {
       return json(200, {
