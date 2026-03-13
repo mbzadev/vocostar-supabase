@@ -409,9 +409,22 @@ services:
       POSTGRES_BACKEND_URL: postgresql://supabase_admin:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/_supabase
       POSTGRES_BACKEND_SCHEMA: _analytics
       LOGFLARE_FEATURE_FLAG_OVERRIDE: multibackend=true
+      # Needed for the pre-start API key sync command below
+      PGPASSWORD: ${POSTGRES_PASSWORD}
       # Uncomment to use Big Query backend for analytics
       # GOOGLE_PROJECT_ID: ${GOOGLE_PROJECT_ID}
       # GOOGLE_PROJECT_NUMBER: ${GOOGLE_PROJECT_NUMBER}
+    # Sync the stored Logflare API key with the configured token on every start.
+    # This fixes 401 errors caused by a stale key seeded on first boot with an empty token.
+    command:
+      - /bin/sh
+      - -c
+      - |
+        echo "Syncing Logflare API key in database..."
+        psql "postgresql://supabase_admin:$$POSTGRES_PASSWORD@$$DB_HOSTNAME:$$DB_PORT/_supabase" \
+          -c "UPDATE _analytics.users SET api_key = '$$LOGFLARE_PUBLIC_ACCESS_TOKEN' WHERE api_key IS NOT NULL;" || true
+        echo "Starting Logflare..."
+        /app/bin/migrate && /app/bin/logflare start
 
       # Comment out everything below this point if you are using an external Postgres database
   db:
