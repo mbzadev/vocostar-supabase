@@ -304,16 +304,6 @@ services:
           - /
     plugins:
       - name: cors
-      - name: response-transformer
-        config:
-          add:
-            headers:
-              - Cache-Control:no-cache, no-store, must-revalidate
-          append: {}
-          remove:
-            headers:
-              - Cache-Control
-          replace: {}
       - name: basic-auth
         config:
           hide_credentials: true
