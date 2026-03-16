@@ -23,7 +23,7 @@ jobs:
       - name: Patch Dockerfile to accept NEXT_PUBLIC build args
         run: |
           # Insert ARG declarations before the RUN pnpm build line so Next.js sees them
-          sed -i 's/RUN pnpm --filter studio exec next build/ARG NEXT_PUBLIC_API_URL=http:\/\/localhost:3000\/api\nENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL\nRUN pnpm --filter studio exec next build/' apps/studio/Dockerfile
+          sed -i 's/RUN pnpm --filter studio exec next build/ARG NEXT_PUBLIC_API_URL=http:\/\/localhost:3000\/api\nENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL\nARG NEXT_PUBLIC_IS_SELF_HOSTED=true\nENV NEXT_PUBLIC_IS_SELF_HOSTED=$NEXT_PUBLIC_IS_SELF_HOSTED\nRUN pnpm --filter studio exec next build/' apps/studio/Dockerfile
 
       - name: Get lower case owner name
         id: owner
@@ -56,5 +56,6 @@ jobs:
           # The real value is set at runtime via docker-compose environment variables.
           build-args: |
             NEXT_PUBLIC_API_URL=http://localhost:3000/api
+            NEXT_PUBLIC_IS_SELF_HOSTED=true
           cache-from: type=gha
           cache-to: type=gha,mode=max
