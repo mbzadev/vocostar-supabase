@@ -5,7 +5,7 @@ services:
 
   studio:
     container_name: ${CONTAINER_PREFIX}-studio
-    image: ghcr.io/lelordd/sb-studio:latest
+    image: ghcr.io/mbzadev/sb-studio:latest
     restart: unless-stopped
     healthcheck:
       test: [ "CMD", "node", "-e", "fetch('http://studio:3000/api/platform/profile').then((r) => {if (r.status !== 200) throw new Error(r.status)})" ]
