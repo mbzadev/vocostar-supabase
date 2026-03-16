@@ -32,7 +32,7 @@ fi
 
 echo ""
 echo "1. Stopping Studio and API services..."
-docker compose -f .tmp-supabase/docker/docker-compose.yml stop studio kong auth rest
+docker compose -f docker-compose.yml stop studio kong auth rest
 
 echo "2. Listing available backups..."
 docker exec vocostar-backup wal-g backup-list || true
@@ -51,8 +51,8 @@ docker run --rm \
   wal-g backup-fetch /var/lib/postgresql/data "$BACKUP_NAME"
 
 echo "4. Restarting services..."
-docker compose -f .tmp-supabase/docker/docker-compose.yml up -d
+docker compose -f docker-compose.yml up -d
 
 echo ""
 echo "✅ Restore complete! Check logs with:"
-echo "   docker compose -f .tmp-supabase/docker/docker-compose.yml logs db"
+echo "   docker compose -f docker-compose.yml logs db"
