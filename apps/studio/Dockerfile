@@ -37,7 +37,6 @@ RUN pnpm dlx turbo@2.8.13 prune studio --docker
 FROM base AS deps
 COPY --from=turbo /app/out/json ./
 COPY --from=turbo /app/out/pnpm-lock.yaml ./
-COPY ./patches/ ./patches
 
 # No need to clean cache because production uses standalone build
 RUN pnpm install --frozen-lockfile
