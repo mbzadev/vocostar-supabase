@@ -3,8 +3,8 @@ name: supabase
 services:
 
   studio:
-    container_name: supabase-studio
-    image: supabase/studio:latest
+    container_name: ${CONTAINER_PREFIX}supabase-studio
+    image: supabase/studio:2026.03.16-sha-5528817
     restart: unless-stopped
     healthcheck:
       test: [ "CMD", "node", "-e", "fetch('http://studio:3000/api/platform/profile').then((r) => {if (r.status !== 200) throw new Error(r.status)})" ]
@@ -49,17 +49,17 @@ services:
       SNIPPETS_MANAGEMENT_FOLDER: /app/snippets
       EDGE_FUNCTIONS_MANAGEMENT_FOLDER: /app/edge-functions
     volumes:
-      - ../files/volumes/snippets:/app/snippets:Z
-      - ../files/volumes/functions:/app/edge-functions:Z
+      - snippets-data:/app/snippets:Z
+      - functions-data:/app/edge-functions:Z
 
   functions-manager:
-    container_name: supabase-functions-manager
+    container_name: ${CONTAINER_PREFIX}supabase-functions-manager
     image: node:20-alpine
     restart: unless-stopped
     ports:
       - "8085:8085"
     volumes:
-      - ../files/volumes/functions:/app/functions:rw
+      - functions-data:/app/functions:rw
       - ./volumes/functions-manager/index.js:/app/index.js:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
     working_dir: /app
@@ -79,8 +79,8 @@ services:
     command: [ "node", "index.js" ]
 
   kong:
-    container_name: supabase-kong
-    image: ghcr.io/mbzadev/kong:2.8.1
+    container_name: ${CONTAINER_PREFIX}supabase-kong
+    image: kong/kong:3.9.1
     restart: unless-stopped
     ports:
       - ${KONG_HTTP_PORT}:8000/tcp
@@ -104,8 +104,8 @@ services:
     entrypoint: bash -c 'eval "echo \"$$(cat ~/temp.yml)\"" > ~/kong.yml && /docker-entrypoint.sh kong docker-start'
 
   auth:
-    container_name: supabase-auth
-    image: supabase/gotrue:v2.188.0-rc.20
+    container_name: ${CONTAINER_PREFIX}supabase-auth
+    image: supabase/gotrue:v2.186.0
     restart: unless-stopped
     healthcheck:
       test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9999/health" ]
@@ -154,8 +154,8 @@ services:
       GOTRUE_SMS_AUTOCONFIRM: ${ENABLE_PHONE_AUTOCONFIRM}
 
   rest:
-    container_name: supabase-rest
-    image: ghcr.io/mbzadev/postgrest:v14.6
+    container_name: ${CONTAINER_PREFIX}supabase-rest
+    image: postgrest/postgrest:v14.6
     restart: unless-stopped
     depends_on:
       db:
@@ -173,8 +173,8 @@ services:
     command: [ "postgrest" ]
 
   realtime:
-    container_name: realtime-dev.supabase-realtime
-    image: ghcr.io/mbzadev/realtime-supabase:v2.78.15
+    container_name: ${CONTAINER_PREFIX}realtime-dev.supabase-realtime
+    image: supabase/realtime:v2.76.5
     restart: unless-stopped
     depends_on:
       db:
@@ -208,8 +208,8 @@ services:
       METRICS_JWT_SECRET: ${JWT_SECRET}
 
   storage:
-    container_name: supabase-storage
-    image: supabase/storage-api:latest
+    container_name: ${CONTAINER_PREFIX}supabase-storage
+    image: supabase/storage-api:v1.44.2
     restart: unless-stopped
     depends_on:
       db:
@@ -247,14 +247,14 @@ services:
       S3_PROTOCOL_ACCESS_KEY_ID: ${S3_PROTOCOL_ACCESS_KEY_ID:-${AWS_ACCESS_KEY_ID}}
       S3_PROTOCOL_ACCESS_KEY_SECRET: ${S3_PROTOCOL_ACCESS_KEY_SECRET:-${AWS_SECRET_ACCESS_KEY}}
     volumes:
-      - ../files/volumes/storage:/var/lib/storage:z
+      - storage-data:/var/lib/storage:z
 
   imgproxy:
-    container_name: supabase-imgproxy
-    image: ghcr.io/mbzadev/imgproxy:v3.30.1
+    container_name: ${CONTAINER_PREFIX}supabase-imgproxy
+    image: darthsim/imgproxy:v3.30.1
     restart: unless-stopped
     volumes:
-      - ../files/volumes/storage:/var/lib/storage:z
+      - storage-data:/var/lib/storage:z
     healthcheck:
       test: [ "CMD", "imgproxy", "health" ]
       timeout: 5s
@@ -268,8 +268,8 @@ services:
       IMGPROXY_MAX_SRC_RESOLUTION: 16.8
 
   meta:
-    container_name: supabase-meta
-    image: supabase/postgres-meta:v0.96.1
+    container_name: ${CONTAINER_PREFIX}supabase-meta
+    image: supabase/postgres-meta:v0.95.2
     restart: unless-stopped
     depends_on:
       db:
@@ -286,11 +286,11 @@ services:
       CRYPTO_KEY: ${PG_META_CRYPTO_KEY}
 
   functions:
-    container_name: supabase-edge-functions
+    container_name: ${CONTAINER_PREFIX}supabase-edge-functions
     image: supabase/edge-runtime:v1.71.2
     restart: unless-stopped
     volumes:
-      - ../files/volumes/functions:/home/deno/functions:Z
+      - functions-data:/home/deno/functions:Z
       - deno-cache:/root/.cache/deno
     depends_on:
       analytics:
@@ -305,12 +305,12 @@ services:
       VERIFY_JWT: "${FUNCTIONS_VERIFY_JWT}"
     command: [ "start", "--main-service", "/home/deno/functions/main" ]
     env_file:
-      - path: ../files/volumes/functions/secrets.env
+      - path: ./volumes/functions/secrets.env
         required: false
 
   analytics:
-    container_name: supabase-analytics
-    image: supabase/logflare:1.34.14
+    container_name: ${CONTAINER_PREFIX}supabase-analytics
+    image: supabase/logflare:1.31.2
     restart: unless-stopped
     healthcheck:
       test: [ "CMD", "curl", "http://localhost:4000/health" ]
@@ -339,15 +339,15 @@ services:
       LOGFLARE_FEATURE_FLAG_OVERRIDE: multibackend=true
 
   db:
-    container_name: supabase-db
-    image: supabase/postgres:17.6.1.097
+    container_name: ${CONTAINER_PREFIX}supabase-db
+    image: supabase/postgres:15.8.1.085
     restart: unless-stopped
     volumes:
       - ./volumes/db/realtime.sql:/docker-entrypoint-initdb.d/migrations/99-realtime.sql:Z
       - ./volumes/db/webhooks.sql:/docker-entrypoint-initdb.d/init-scripts/98-webhooks.sql:Z
       - ./volumes/db/roles.sql:/docker-entrypoint-initdb.d/init-scripts/99-roles.sql:Z
       - ./volumes/db/jwt.sql:/docker-entrypoint-initdb.d/init-scripts/99-jwt.sql:Z
-      - ../files/volumes/db/data:/var/lib/postgresql/data:Z
+      - db-data:/var/lib/postgresql/data:Z
       - ./volumes/db/_supabase.sql:/docker-entrypoint-initdb.d/migrations/97-_supabase.sql:Z
       - ./volumes/db/logs.sql:/docker-entrypoint-initdb.d/migrations/99-logs.sql:Z
       - ./volumes/db/pooler.sql:/docker-entrypoint-initdb.d/migrations/99-pooler.sql:Z
@@ -380,7 +380,7 @@ services:
       ]
 
   vector:
-    container_name: supabase-vector
+    container_name: ${CONTAINER_PREFIX}supabase-vector
     image: timberio/vector:0.53.0-alpine
     restart: unless-stopped
     volumes:
@@ -398,8 +398,8 @@ services:
     security_opt:
       - "label=disable"
   supavisor:
-    container_name: supabase-pooler
-    image: ghcr.io/mbzadev/supavisor-supabase:2.7.4
+    container_name: ${CONTAINER_PREFIX}supabase-pooler
+    image: supabase/supavisor:2.7.4
     restart: unless-stopped
     ports:
       - ${POSTGRES_PORT}:5432
@@ -439,3 +439,7 @@ services:
 volumes:
   db-config:
   deno-cache:
+  db-data:
+  storage-data:
+  snippets-data:
+  functions-data:
