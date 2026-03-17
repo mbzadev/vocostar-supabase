@@ -49,8 +49,8 @@ services:
       SNIPPETS_MANAGEMENT_FOLDER: /app/snippets
       EDGE_FUNCTIONS_MANAGEMENT_FOLDER: /app/edge-functions
     volumes:
-      - ./volumes/snippets:/app/snippets:Z
-      - ./volumes/functions:/app/edge-functions:Z
+      - ../files/volumes/snippets:/app/snippets:Z
+      - ../files/volumes/functions:/app/edge-functions:Z
 
   functions-manager:
     container_name: supabase-functions-manager
@@ -59,7 +59,7 @@ services:
     ports:
       - "8085:8085"
     volumes:
-      - ./volumes/functions:/app/functions:rw
+      - ../files/volumes/functions:/app/functions:rw
       - ./volumes/functions-manager/index.js:/app/index.js:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
     working_dir: /app
@@ -247,14 +247,14 @@ services:
       S3_PROTOCOL_ACCESS_KEY_ID: ${S3_PROTOCOL_ACCESS_KEY_ID:-${AWS_ACCESS_KEY_ID}}
       S3_PROTOCOL_ACCESS_KEY_SECRET: ${S3_PROTOCOL_ACCESS_KEY_SECRET:-${AWS_SECRET_ACCESS_KEY}}
     volumes:
-      - ./volumes/storage:/var/lib/storage:z
+      - ../files/volumes/storage:/var/lib/storage:z
 
   imgproxy:
     container_name: supabase-imgproxy
     image: ghcr.io/mbzadev/imgproxy:v3.30.1
     restart: unless-stopped
     volumes:
-      - ./volumes/storage:/var/lib/storage:z
+      - ../files/volumes/storage:/var/lib/storage:z
     healthcheck:
       test: [ "CMD", "imgproxy", "health" ]
       timeout: 5s
@@ -290,7 +290,7 @@ services:
     image: supabase/edge-runtime:v1.71.2
     restart: unless-stopped
     volumes:
-      - ./volumes/functions:/home/deno/functions:Z
+      - ../files/volumes/functions:/home/deno/functions:Z
       - deno-cache:/root/.cache/deno
     depends_on:
       analytics:
@@ -305,7 +305,7 @@ services:
       VERIFY_JWT: "${FUNCTIONS_VERIFY_JWT}"
     command: [ "start", "--main-service", "/home/deno/functions/main" ]
     env_file:
-      - path: ./volumes/functions/secrets.env
+      - path: ../files/volumes/functions/secrets.env
         required: false
 
   analytics:
@@ -347,7 +347,7 @@ services:
       - ./volumes/db/webhooks.sql:/docker-entrypoint-initdb.d/init-scripts/98-webhooks.sql:Z
       - ./volumes/db/roles.sql:/docker-entrypoint-initdb.d/init-scripts/99-roles.sql:Z
       - ./volumes/db/jwt.sql:/docker-entrypoint-initdb.d/init-scripts/99-jwt.sql:Z
-      - ./volumes/db/data:/var/lib/postgresql/data:Z
+      - ../files/volumes/db/data:/var/lib/postgresql/data:Z
       - ./volumes/db/_supabase.sql:/docker-entrypoint-initdb.d/migrations/97-_supabase.sql:Z
       - ./volumes/db/logs.sql:/docker-entrypoint-initdb.d/migrations/99-logs.sql:Z
       - ./volumes/db/pooler.sql:/docker-entrypoint-initdb.d/migrations/99-pooler.sql:Z
