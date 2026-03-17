@@ -4,7 +4,7 @@ services:
 
   studio:
     container_name: ${CONTAINER_PREFIX}-supabase-studio
-    image: supabase/studio:2026.03.16-sha-5528817
+    image: supabase/studio:20250117-90ffb0c
     restart: unless-stopped
     healthcheck:
       test: [ "CMD", "node", "-e", "fetch('http://studio:3000/api/platform/profile').then((r) => {if (r.status !== 200) throw new Error(r.status)})" ]
