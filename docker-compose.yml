@@ -1,11 +1,10 @@
-
 name: supabase
 
 services:
 
   studio:
     container_name: supabase-studio
-    image: ghcr.io/mbzadev/sb-studio:latest
+    image: jingsam/supabase-studio:latest
     restart: unless-stopped
     healthcheck:
       test: [ "CMD", "node", "-e", "fetch('http://studio:3000/api/platform/profile').then((r) => {if (r.status !== 200) throw new Error(r.status)})" ]
@@ -77,7 +76,7 @@ services:
       - SITE_URL=${SITE_URL}
       - ADDITIONAL_REDIRECT_URLS=${ADDITIONAL_REDIRECT_URLS}
       - JWT_EXPIRY=${JWT_EXPIRY}
-    command: ["node", "index.js"]
+    command: [ "node", "index.js" ]
 
   kong:
     container_name: supabase-kong
@@ -304,7 +303,7 @@ services:
       SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
       SUPABASE_DB_URL: postgresql://postgres:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
       VERIFY_JWT: "${FUNCTIONS_VERIFY_JWT}"
-    command: ["start", "--main-service", "/home/deno/functions/main"]
+    command: [ "start", "--main-service", "/home/deno/functions/main" ]
     env_file:
       - path: ./volumes/functions/secrets.env
         required: false
