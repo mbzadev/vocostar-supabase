@@ -212,28 +212,50 @@ const server = http.createServer(async (req, res) => {
 
     // -----------------------------------------------------------------------
     // CONTENT (SQL snippets): /api/platform/projects/:ref/content[/...]
-    // Studio SQL Editor calls:
-    //   GET  /content         → root folder {type:'folder', content:[...]}
-    //   GET  /content/count   → number
-    //   GET  /content/folders → []
-    //   GET  /content/item/:id     → snippet object
-    //   POST /content              → create snippet
-    //   PATCH/PUT /content/item/:id → update snippet
-    //   DELETE /content/item/:id  → delete snippet
+    //
+    // Exact formats from Supabase Studio source (apps/studio/data/content/):
+    //
+    //   GET /content?type=sql&limit=100&sort_by=inserted_at&sort_order=desc&visibility=user
+    //     → { data: [...SqlSnippet], cursor: string|null }
+    //     (content-infinite-query.ts: returns { cursor: data.cursor, contents: data.data })
+    //
+    //   GET /content/folders?type=sql&limit=100&sort_by=&visibility=user
+    //     → { data: { folders: [...], contents: [...SqlSnippet] }, cursor: string|null }
+    //     (sql-folders-query.ts: returns { ...data.data, cursor: data.cursor })
+    //
+    //   GET /content/count?type=sql
+    //     → { count: number }  (content-count-query.ts)
+    //
+    //   GET /content/item/:id
+    //     → snippet object directly (content-id-query.ts)
+    //
+    //   POST /content  → create snippet → { data: snippet }
+    //   PATCH/PUT /content/item/:id → update → snippet
+    //   DELETE /content/item/:id → {}
     // -----------------------------------------------------------------------
     const contentMatch = pathname.match(/^\/api\/platform\/projects\/([^/]+)\/content(\/(.+))?$/);
     if (contentMatch) {
       const subPath = contentMatch[2] || '';
 
+      // GET /content/count?type=sql → { count: N }
       if (req.method === 'GET' && subPath === '/count') {
         const snippets = loadSnippets();
         const type = url.searchParams.get('type');
         const count = type ? snippets.filter(s => s.type === type).length : snippets.length;
-        return json(200, count);
+        return json(200, { count });
       }
 
+      // GET /content/folders?type=sql&visibility=user
+      // Returns paginated folder+snippets structure:
+      // { data: { folders: [], contents: [...snippets] }, cursor: null }
       if (req.method === 'GET' && subPath === '/folders') {
-        return json(200, []);
+        const snippets = loadSnippets();
+        const type = url.searchParams.get('type');
+        const filtered = type ? snippets.filter(s => s.type === type) : snippets;
+        return json(200, {
+          data: { folders: [], contents: filtered },
+          cursor: null,
+        });
       }
 
       const itemMatch = subPath.match(/^\/item\/(.+)$/);
@@ -265,14 +287,15 @@ const server = http.createServer(async (req, res) => {
         }
       }
 
-      // GET /content → root folder listing
+      // GET /content?type=sql&limit=100&sort_by=inserted_at&sort_order=desc&visibility=user
+      // Returns paginated snippets: { data: [...SqlSnippet], cursor: null }
       if (req.method === 'GET') {
         const snippets = loadSnippets();
+        const type = url.searchParams.get('type');
+        const filtered = type ? snippets.filter(s => s.type === type) : snippets;
         return json(200, {
-          id: 'root',
-          name: 'root',
-          type: 'folder',
-          content: snippets,
+          data: filtered,
+          cursor: null,
         });
       }
 
@@ -282,11 +305,12 @@ const server = http.createServer(async (req, res) => {
           const body = JSON.parse((await readBody(req)).toString());
           const snippets = loadSnippets();
           const snip = {
-            id:          Date.now().toString(),
+            id:          crypto.randomUUID(),
             type:        body.type || 'sql',
             name:        body.name || 'Untitled Query',
             description: body.description || '',
             content:     body.content || { sql: '' },
+            visibility:  body.visibility || 'user',
             owner_id:    'default',
             inserted_at: new Date().toISOString(),
             updated_at:  new Date().toISOString(),
