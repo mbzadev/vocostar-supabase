@@ -43,6 +43,7 @@ services:
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${ANON_KEY}
       SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
       AUTH_JWT_SECRET: ${JWT_SECRET}
+      GOTRUE_ADMIN_URL: http://auth:9999
       NEXT_PUBLIC_API_URL: ${SUPABASE_PUBLIC_URL}/api
       NEXT_PUBLIC_IS_SELF_HOSTED: 'true'
 
@@ -62,13 +63,6 @@ services:
     volumes:
       - ./volumes/snippets:/app/snippets:Z
       - ./volumes/functions:/app/edge-functions:Z
-    command:
-      - /bin/sh
-      - -c
-      - |
-        # Surgical IS_PLATFORM patch: lookahead regex only replaces conditional usage
-        echo aW1wb3J0IHJlLCBnbG9iCkRFUExPWV9TVFJJTkdTID0gWyJEZXBsb3kgYSBuZXcgZnVuY3Rpb24iXQpUQUJTX1NUUklOR1MgPSBbCiAgICAiSW52b2NhdGlvbnMiLCAiRWRnZSBGdW5jdGlvbiBMb2dzIiwgImZ1bmN0aW9uIG5vdCBmb3VuZCIsCiAgICAiRWRnZSBGdW5jdGlvbiBTZWNyZXRzIiwgImlzRWRpdGluZyIsICJEZXBsb3kgdXBkYXRlcyIsCiAgICAiU2lnbiBJbiAvIFByb3ZpZGVycyIsCiAgICAiQmFuIHVzZXIiLAogICAgIk9UUCBleHBpcnkiLAogICAgIk11bHRpLUZhY3RvciBBdXRoZW50aWNhdGlvbiIsCl0KcGF0Y2hlZCA9IDAKZm9yIGYgaW4gZ2xvYi5nbG9iKCIvYXBwL2FwcHMvc3R1ZGlvLy5uZXh0L3N0YXRpYy9jaHVua3MvKi5qcyIpOgogICAgdHJ5OgogICAgICAgIGMgPSBvcGVuKGYpLnJlYWQoKQogICAgICAgIGlmICJJU19QTEFURk9STSIgbm90IGluIGM6CiAgICAgICAgICAgIGNvbnRpbnVlCiAgICAgICAgaXNfZGVwbG95ID0gYW55KHMgaW4gYyBmb3IgcyBpbiBERVBMT1lfU1RSSU5HUykKICAgICAgICBpc190YWJzID0gYW55KHMgaW4gYyBmb3IgcyBpbiBUQUJTX1NUUklOR1MpCiAgICAgICAgaWYgbm90IChpc19kZXBsb3kgb3IgaXNfdGFicyk6CiAgICAgICAgICAgIGNvbnRpbnVlCiAgICAgICAgb3JpZyA9IGMKICAgICAgICBjID0gcmUuc3ViKHInW0EtWmEtel8kXStcLklTX1BMQVRGT1JNKD89JiYpJywgJ3RydWUnLCBjKQogICAgICAgIGMgPSByZS5zdWIocidbQS1aYS16XyRdK1wuSVNfUExBVEZPUk0oPz1cPyknLCAndHJ1ZScsIGMpCiAgICAgICAgYyA9IHJlLnN1YihyJyFbQS1aYS16XyRdK1wuSVNfUExBVEZPUk0oPz1bJnwsKVxzfV0pJywgJ2ZhbHNlJywgYykKICAgICAgICBpZiBjICE9IG9yaWc6CiAgICAgICAgICAgIG9wZW4oZiwgInciKS53cml0ZShjKQogICAgICAgICAgICBwcmludCgiUGF0Y2hlZDogIiArIGYsIGZsdXNoPVRydWUpCiAgICAgICAgICAgIHBhdGNoZWQgKz0gMQogICAgZXhjZXB0IEV4Y2VwdGlvbiBhcyBlOgogICAgICAgIHByaW50KCJFcnJvcjogIiArIHN0cihlKSwgZmx1c2g9VHJ1ZSkKcHJpbnQoIkRvbmU6ICIgKyBzdHIocGF0Y2hlZCkgKyAiIGNodW5rKHMpIHBhdGNoZWQiLCBmbHVzaD1UcnVlKQo= | base64 -d | python3
-        exec docker-entrypoint.sh node apps/studio/server.js
 
   functions-manager:
     container_name: supabase-functions-manager
@@ -79,34 +73,21 @@ services:
     volumes:
       - ./volumes/functions:/app/functions:rw
       - ./volumes/functions-manager/index.js:/app/index.js:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     working_dir: /app
     environment:
       - EDGE_FUNCTIONS_DIR=/app/functions
       - SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY}
       - GOTRUE_HOST=supabase-auth
       - GOTRUE_PORT=9999
-      # GoTrue config vars (for auth config API)
+      - DOCKER_AUTH_CONTAINER=supabase-auth
+      - PG_META_HOST=meta
+      - PG_META_PORT=8080
+      - ANON_KEY=${ANON_KEY}
+      - SUPABASE_PUBLIC_URL=${SUPABASE_PUBLIC_URL}
       - SITE_URL=${SITE_URL}
       - ADDITIONAL_REDIRECT_URLS=${ADDITIONAL_REDIRECT_URLS}
-      - DISABLE_SIGNUP=${DISABLE_SIGNUP}
       - JWT_EXPIRY=${JWT_EXPIRY}
-      - ENABLE_EMAIL_SIGNUP=${ENABLE_EMAIL_SIGNUP}
-      - ENABLE_EMAIL_AUTOCONFIRM=${ENABLE_EMAIL_AUTOCONFIRM}
-      - ENABLE_PHONE_SIGNUP=${ENABLE_PHONE_SIGNUP}
-      - ENABLE_PHONE_AUTOCONFIRM=${ENABLE_PHONE_AUTOCONFIRM}
-      - ENABLE_ANONYMOUS_USERS=${ENABLE_ANONYMOUS_USERS}
-      - SMTP_ADMIN_EMAIL=${SMTP_ADMIN_EMAIL}
-      - SMTP_HOST=${SMTP_HOST}
-      - SMTP_PORT=${SMTP_PORT}
-      - SMTP_USER=${SMTP_USER}
-      - SMTP_PASS=${SMTP_PASS}
-      - SMTP_SENDER_NAME=${SMTP_SENDER_NAME}
-      - GOOGLE_ENABLED=${GOOGLE_ENABLED:-false}
-      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
-      - GOOGLE_SECRET=${GOOGLE_SECRET:-}
-      - APPLE_ENABLED=${APPLE_ENABLED:-false}
-      - APPLE_CLIENT_ID=${APPLE_CLIENT_ID:-}
-      - APPLE_SECRET=${APPLE_SECRET:-}
     command: ["node", "index.js"]
 
   kong:
