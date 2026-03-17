@@ -734,6 +734,58 @@ const server = http.createServer(async (req, res) => {
     }
 
     // -----------------------------------------------------------------------
+    // Config stubs: /api/platform/projects/:ref/config/*
+    // Correct response shapes from Studio source: apps/studio/data/config/
+    // -----------------------------------------------------------------------
+    const configMatch = pathname.match(/^\/api\/platform\/projects\/([^/]+)\/config\/(.+)$/);
+    if (configMatch) {
+      const configKey = configMatch[2]; // e.g. 'postgrest', 'auth', 'storage'
+      if (req.method === 'GET') {
+        if (configKey === 'postgrest') {
+          // project-postgrest-config-query.ts — data.db_schema.split(',') is called on this
+          return json(200, {
+            db_schema:       'public',
+            db_anon_role:    'anon',
+            db_pool:         15,
+            max_rows:        1000,
+            db_extra_search_path: 'extensions',
+            jwt_secret:      JWT_SECRET,
+          });
+        }
+        if (configKey === 'auth') {
+          return json(200, {
+            site_url:          process.env.SITE_URL || '',
+            jwt_exp:           3600,
+            disable_signup:    false,
+            external:          {},
+            email_autoconfirm: false,
+            sms_autoconfirm:   false,
+            mailer_autoconfirm: false,
+            mailer_subjects:   {},
+            mailer_templates:  {},
+            sms_provider:      '',
+            external_email_enabled: true,
+            external_phone_enabled: false,
+            hook:              {},
+          });
+        }
+        if (configKey === 'storage') {
+          return json(200, { fileSizeLimit: 52428800, features: { imageTransformation: { enabled: false } } });
+        }
+        // Any other config: return empty object (not array)
+        return json(200, {});
+      }
+      // PATCH/PUT for config updates
+      if (req.method === 'PATCH' || req.method === 'PUT') {
+        try {
+          const body = JSON.parse((await readBody(req)).toString());
+          return json(200, body);
+        } catch { return json(200, {}); }
+      }
+      return json(200, {});
+    }
+
+    // -----------------------------------------------------------------------
     // Catch-all stubs — must return appropriate empty types
     // -----------------------------------------------------------------------
 
