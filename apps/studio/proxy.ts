@@ -36,16 +36,6 @@ const HOSTED_SUPPORTED_API_URLS = [
 const IS_SELF_HOSTED = process.env.NEXT_PUBLIC_IS_SELF_HOSTED === 'true'
 
 export function proxy(request: NextRequest) {
-  // [VOCOSTAR] Self-hosted: toutes les routes /api/* sont gérées par leurs handlers Next.js
-  if (IS_SELF_HOSTED) return
-
-  if (
-    IS_PLATFORM &&
-    !HOSTED_SUPPORTED_API_URLS.some((url) => request.nextUrl.pathname.endsWith(url))
-  ) {
-    return Response.json(
-      { success: false, message: 'Endpoint not supported on hosted' },
-      { status: 404 }
-    )
-  }
+  // [VOCOSTAR] Self-hosted: bypass everything and let route handlers handle it
+  return
 }

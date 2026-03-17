@@ -27,17 +27,17 @@ export function constructHeaders(headers: { [prop: string]: any }) {
     Object.keys(cleansedHeaders).forEach((key) =>
       cleansedHeaders[key] === undefined ? delete cleansedHeaders[key] : {}
     )
-    return {
+    const finalHeaders = {
       ...cleansedHeaders,
-      // [Joshen] JFYI both Alaister and I checked on this and realised this might not be used actually
-      // Could be safe to remove but leaving it here for now
-      ...(!IS_PLATFORM && { apiKey: `${process.env.SUPABASE_SERVICE_KEY}` }),
       // [VOCOSTAR] Self-hosted: inject service_role_key for Kong authentication on all API routes (/pg-meta, etc.)
       ...(IS_SELF_HOSTED && {
         apikey: `${process.env.SUPABASE_SERVICE_KEY}`,
         Authorization: `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
       }),
+      // For non-platform but not self-hosted? Keep fallback just in case
+      ...(!IS_PLATFORM && !IS_SELF_HOSTED && { apiKey: `${process.env.SUPABASE_SERVICE_KEY}` }),
     }
+    return finalHeaders
   } else {
     return {
       'Content-Type': 'application/json',
