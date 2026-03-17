@@ -4,7 +4,7 @@ services:
 
   studio:
     container_name: supabase-studio
-    image: jingsam/supabase-studio:latest
+    image: supabase/studio:latest
     restart: unless-stopped
     healthcheck:
       test: [ "CMD", "node", "-e", "fetch('http://studio:3000/api/platform/profile').then((r) => {if (r.status !== 200) throw new Error(r.status)})" ]
@@ -105,7 +105,7 @@ services:
 
   auth:
     container_name: supabase-auth
-    image: ghcr.io/mbzadev/gotrue-supabase:v2.187.0
+    image: supabase/gotrue:v2.188.0-rc.20
     restart: unless-stopped
     healthcheck:
       test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9999/health" ]
@@ -174,7 +174,7 @@ services:
 
   realtime:
     container_name: realtime-dev.supabase-realtime
-    image: ghcr.io/mbzadev/realtime-supabase:v2.78.11
+    image: ghcr.io/mbzadev/realtime-supabase:v2.78.15
     restart: unless-stopped
     depends_on:
       db:
@@ -209,7 +209,7 @@ services:
 
   storage:
     container_name: supabase-storage
-    image: ghcr.io/mbzadev/storage-api-supabase:v1.37.8
+    image: supabase/storage-api:latest
     restart: unless-stopped
     depends_on:
       db:
@@ -269,7 +269,7 @@ services:
 
   meta:
     container_name: supabase-meta
-    image: ghcr.io/mbzadev/postgres-meta-supabase:v0.95.2
+    image: supabase/postgres-meta:v0.96.1
     restart: unless-stopped
     depends_on:
       db:
@@ -287,7 +287,7 @@ services:
 
   functions:
     container_name: supabase-edge-functions
-    image: ghcr.io/mbzadev/edge-runtime-supabase:v1.70.3
+    image: supabase/edge-runtime:v1.71.2
     restart: unless-stopped
     volumes:
       - ./volumes/functions:/home/deno/functions:Z
@@ -310,7 +310,7 @@ services:
 
   analytics:
     container_name: supabase-analytics
-    image: ghcr.io/mbzadev/logflare-supabase:1.31.2
+    image: supabase/logflare:1.34.14
     restart: unless-stopped
     healthcheck:
       test: [ "CMD", "curl", "http://localhost:4000/health" ]
@@ -340,7 +340,7 @@ services:
 
   db:
     container_name: supabase-db
-    image: ghcr.io/mbzadev/postgres-supabase:15.8.1.085
+    image: supabase/postgres:17.6.1.097
     restart: unless-stopped
     volumes:
       - ./volumes/db/realtime.sql:/docker-entrypoint-initdb.d/migrations/99-realtime.sql:Z
