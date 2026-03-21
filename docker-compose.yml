@@ -40,7 +40,7 @@ services:
       EDGE_FUNCTIONS_MANAGEMENT_FOLDER: /app/edge-functions
     volumes:
       - snippets-data:/app/snippets
-      - ./volumes/functions:/app/edge-functions:Z
+      - functions-data:/app/edge-functions
     command:
       - /bin/sh
       - -c
@@ -55,7 +55,7 @@ services:
     ports:
       - "8085:8085"
     volumes:
-      - ./volumes/functions:/app/functions:rw
+      - functions-data:/app/functions
       - ./volumes/functions-manager/index.js:/app/index.js:ro
     working_dir: /app
     environment:
@@ -268,7 +268,7 @@ services:
     image: ghcr.io/mbzadev/edge-runtime-supabase:v1.70.3
     restart: unless-stopped
     volumes:
-      - ./volumes/functions:/home/deno/functions:Z
+      - functions-data:/home/deno/functions
       - deno-cache:/root/.cache/deno
     depends_on:
       analytics:
@@ -425,3 +425,5 @@ volumes:
     name: supabase_storage_data
   snippets-data:
     name: supabase_snippets_data
+  functions-data:
+    name: supabase_functions_data
