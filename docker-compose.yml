@@ -1,17 +1,10 @@
-# Usage
-#   Start:              docker compose up
-#   With helpers:       docker compose -f docker-compose.yml -f ./dev/docker-compose.dev.yml up
-#   Stop:               docker compose down
-#   Destroy:            docker compose -f docker-compose.yml -f ./dev/docker-compose.dev.yml down -v --remove-orphans
-#   Reset everything:  ./reset.sh
-
 name: supabase
 
 services:
 
   studio:
     container_name: supabase-studio
-    image: supabase/studio:2026.03.04-sha-0043607
+    image: supabase/studio:latest
     restart: unless-stopped
     healthcheck:
       test: [ "CMD", "node", "-e", "fetch('http://studio:3000/api/platform/profile').then((r) => {if (r.status !== 200) throw new Error(r.status)})" ]
@@ -22,7 +15,6 @@ services:
       analytics:
         condition: service_healthy
     environment:
-      # Binds nestjs listener to both IPv4 and IPv6 network interfaces
       HOSTNAME: "::"
 
       STUDIO_PG_META_URL: http://meta:8080
@@ -38,34 +30,27 @@ services:
 
       SUPABASE_URL: http://kong:8000
       SUPABASE_PUBLIC_URL: ${SUPABASE_PUBLIC_URL}
+      NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_PUBLIC_URL}
       SUPABASE_ANON_KEY: ${ANON_KEY}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${ANON_KEY}
       SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
       AUTH_JWT_SECRET: ${JWT_SECRET}
+      GOTRUE_ADMIN_URL: http://auth:9999
+      NEXT_PUBLIC_API_URL: ${SUPABASE_PUBLIC_URL}/api
+      NEXT_PUBLIC_IS_SELF_HOSTED: 'true'
 
-      # LOGFLARE_API_KEY is deprecated
       LOGFLARE_API_KEY: ${LOGFLARE_PUBLIC_ACCESS_TOKEN:-${LOGFLARE_API_KEY}}
       LOGFLARE_PUBLIC_ACCESS_TOKEN: ${LOGFLARE_PUBLIC_ACCESS_TOKEN:-${LOGFLARE_API_KEY}}
       LOGFLARE_PRIVATE_ACCESS_TOKEN: ${LOGFLARE_PRIVATE_ACCESS_TOKEN:-${LOGFLARE_API_KEY}}
 
       LOGFLARE_URL: http://analytics:4000
       NEXT_PUBLIC_ENABLE_LOGS: true
-      # Comment to use Big Query backend for analytics
       NEXT_ANALYTICS_BACKEND_PROVIDER: postgres
-      # Uncomment to use Big Query backend for analytics
-      # NEXT_ANALYTICS_BACKEND_PROVIDER: bigquery
       SNIPPETS_MANAGEMENT_FOLDER: /app/snippets
       EDGE_FUNCTIONS_MANAGEMENT_FOLDER: /app/edge-functions
     volumes:
       - ./volumes/snippets:/app/snippets:Z
       - ./volumes/functions:/app/edge-functions:Z
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        # Surgical patch: patch only conditional IS_PLATFORM usage (&&, ?), not query enabled flags
-        # Python script is base64-encoded to avoid YAML/shell escaping issues
-        echo aW1wb3J0IHJlLCBnbG9iCkRFUExPWV9TVFJJTkdTID0gWyJEZXBsb3kgYSBuZXcgZnVuY3Rpb24iXQpUQUJTX1NUUklOR1MgPSBbIkludm9jYXRpb25zIiwgIkVkZ2UgRnVuY3Rpb24gTG9ncyIsICJmdW5jdGlvbiBub3QgZm91bmQiLCAiRWRnZSBGdW5jdGlvbiBTZWNyZXRzIiwgIkRlbGV0ZSB0aGUgZnVuY3Rpb24iXQpwYXRjaGVkID0gMApmb3IgZiBpbiBnbG9iLmdsb2IoIi9hcHAvYXBwcy9zdHVkaW8vLm5leHQvc3RhdGljL2NodW5rcy8qLmpzIik6CiAgICB0cnk6CiAgICAgICAgYyA9IG9wZW4oZikucmVhZCgpCiAgICAgICAgaWYgIklTX1BMQVRGT1JNIiBub3QgaW4gYzoKICAgICAgICAgICAgY29udGludWUKICAgICAgICBpc19kZXBsb3kgPSBhbnkocyBpbiBjIGZvciBzIGluIERFUExPWV9TVFJJTkdTKQogICAgICAgIGlzX3RhYnMgPSBhbnkocyBpbiBjIGZvciBzIGluIFRBQlNfU1RSSU5HUykKICAgICAgICBpZiBub3QgKGlzX2RlcGxveSBvciBpc190YWJzKToKICAgICAgICAgICAgY29udGludWUKICAgICAgICBvcmlnID0gYwogICAgICAgICMgT25seSByZXBsYWNlIElTX1BMQVRGT1JNIHdoZW4gdXNlZCBpbiBib29sZWFuIGV4cHJlc3Npb25zICgmJiBvciB0ZXJuYXJ5ID8pCiAgICAgICAgIyBUaGlzIHByZXNlcnZlcyB7ZW5hYmxlZDprLklTX1BMQVRGT1JNfSBzbyBxdWVyaWVzIGFyZW4ndCB3cm9uZ2x5IGVuYWJsZWQKICAgICAgICBjID0gcmUuc3ViKHInW0EtWmEtel8kXStcLklTX1BMQVRGT1JNKD89JiYpJywgJ3RydWUnLCBjKQogICAgICAgIGMgPSByZS5zdWIocidbQS1aYS16XyRdK1wuSVNfUExBVEZPUk0oPz1cPyknLCAndHJ1ZScsIGMpCiAgICAgICAgYyA9IHJlLnN1YihyJyFbQS1aYS16XyRdK1wuSVNfUExBVEZPUk0oPz1bJnwsKVxzXSknLCAnZmFsc2UnLCBjKQogICAgICAgIGlmIGMgIT0gb3JpZzoKICAgICAgICAgICAgb3BlbihmLCAidyIpLndyaXRlKGMpCiAgICAgICAgICAgIHByaW50KCJQYXRjaGVkOiAiICsgZiwgZmx1c2g9VHJ1ZSkKICAgICAgICAgICAgcGF0Y2hlZCArPSAxCiAgICBleGNlcHQgRXhjZXB0aW9uIGFzIGU6CiAgICAgICAgcHJpbnQoIkVycm9yOiAiICsgc3RyKGUpLCBmbHVzaD1UcnVlKQpwcmludCgiRG9uZTogIiArIHN0cihwYXRjaGVkKSArICIgY2h1bmsocykgcGF0Y2hlZCIsIGZsdXNoPVRydWUpCg== | base64 -d | python3
-        exec docker-entrypoint.sh node apps/studio/server.js
-
 
   functions-manager:
     container_name: supabase-functions-manager
@@ -76,10 +61,22 @@ services:
     volumes:
       - ./volumes/functions:/app/functions:rw
       - ./volumes/functions-manager/index.js:/app/index.js:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     working_dir: /app
     environment:
       - EDGE_FUNCTIONS_DIR=/app/functions
-    command: ["node", "index.js"]
+      - SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY}
+      - GOTRUE_HOST=supabase-auth
+      - GOTRUE_PORT=9999
+      - DOCKER_AUTH_CONTAINER=supabase-auth
+      - PG_META_HOST=meta
+      - PG_META_PORT=8080
+      - ANON_KEY=${ANON_KEY}
+      - SUPABASE_PUBLIC_URL=${SUPABASE_PUBLIC_URL}
+      - SITE_URL=${SITE_URL}
+      - ADDITIONAL_REDIRECT_URLS=${ADDITIONAL_REDIRECT_URLS}
+      - JWT_EXPIRY=${JWT_EXPIRY}
+    command: [ "node", "index.js" ]
 
   kong:
     container_name: supabase-kong
@@ -89,33 +86,26 @@ services:
       - ${KONG_HTTP_PORT}:8000/tcp
       - ${KONG_HTTPS_PORT}:8443/tcp
     volumes:
-      # https://github.com/supabase/supabase/issues/12661
       - ./volumes/api/kong.yml:/home/kong/temp.yml:ro,z
-      #- ./volumes/api/server.crt:/home/kong/server.crt:ro
-      #- ./volumes/api/server.key:/home/kong/server.key:ro
     depends_on:
       analytics:
         condition: service_healthy
     environment:
       KONG_DATABASE: "off"
       KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
-      # https://github.com/supabase/cli/issues/14
       KONG_DNS_ORDER: LAST,A,CNAME
       KONG_PLUGINS: request-transformer,cors,key-auth,acl,basic-auth,request-termination,ip-restriction
       KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
       KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
-      #KONG_SSL_CERT: /home/kong/server.crt
-      #KONG_SSL_CERT_KEY: /home/kong/server.key
       SUPABASE_ANON_KEY: ${ANON_KEY}
       SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
       DASHBOARD_USERNAME: ${DASHBOARD_USERNAME}
       DASHBOARD_PASSWORD: ${DASHBOARD_PASSWORD}
-    # https://unix.stackexchange.com/a/294837
     entrypoint: bash -c 'eval "echo \"$$(cat ~/temp.yml)\"" > ~/kong.yml && /docker-entrypoint.sh kong docker-start'
 
   auth:
     container_name: supabase-auth
-    image: ghcr.io/mbzadev/gotrue-supabase:v2.187.0
+    image: supabase/gotrue:v2.188.0-rc.20
     restart: unless-stopped
     healthcheck:
       test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9999/health" ]
@@ -124,7 +114,6 @@ services:
       retries: 3
     depends_on:
       db:
-        # Disable this if you are using an external Postgres database
         condition: service_healthy
       analytics:
         condition: service_healthy
@@ -150,11 +139,6 @@ services:
       GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED: ${ENABLE_ANONYMOUS_USERS}
       GOTRUE_MAILER_AUTOCONFIRM: ${ENABLE_EMAIL_AUTOCONFIRM}
 
-      # Uncomment to bypass nonce check in ID Token flow. Commonly set to true when using Google Sign In on mobile.
-      # GOTRUE_EXTERNAL_SKIP_NONCE_CHECK: true
-
-      # GOTRUE_MAILER_SECURE_EMAIL_CHANGE_ENABLED: true
-      # GOTRUE_SMTP_MAX_FREQUENCY: 1s
       GOTRUE_SMTP_ADMIN_EMAIL: ${SMTP_ADMIN_EMAIL}
       GOTRUE_SMTP_HOST: ${SMTP_HOST}
       GOTRUE_SMTP_PORT: ${SMTP_PORT}
@@ -168,65 +152,6 @@ services:
 
       GOTRUE_EXTERNAL_PHONE_ENABLED: ${ENABLE_PHONE_SIGNUP}
       GOTRUE_SMS_AUTOCONFIRM: ${ENABLE_PHONE_AUTOCONFIRM}
-      # Uncomment to enable OAuth / social login providers.
-      # GOTRUE_EXTERNAL_GOOGLE_ENABLED: ${GOOGLE_ENABLED}
-      # GOTRUE_EXTERNAL_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
-      # GOTRUE_EXTERNAL_GOOGLE_SECRET: ${GOOGLE_SECRET}
-      # GOTRUE_EXTERNAL_GOOGLE_REDIRECT_URI: ${API_EXTERNAL_URL}/auth/v1/callback
-
-      # GOTRUE_EXTERNAL_GITHUB_ENABLED: ${GITHUB_ENABLED}
-      # GOTRUE_EXTERNAL_GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
-      # GOTRUE_EXTERNAL_GITHUB_SECRET: ${GITHUB_SECRET}
-      # GOTRUE_EXTERNAL_GITHUB_REDIRECT_URI: ${API_EXTERNAL_URL}/auth/v1/callback
-
-      # GOTRUE_EXTERNAL_AZURE_ENABLED: ${AZURE_ENABLED}
-      # GOTRUE_EXTERNAL_AZURE_CLIENT_ID: ${AZURE_CLIENT_ID}
-      # GOTRUE_EXTERNAL_AZURE_SECRET: ${AZURE_SECRET}
-      # GOTRUE_EXTERNAL_AZURE_REDIRECT_URI: ${API_EXTERNAL_URL}/auth/v1/callback
-
-      # Uncomment to configure SMS delivery (phone auth and phone MFA).
-      # GOTRUE_SMS_PROVIDER: ${SMS_PROVIDER}
-      # GOTRUE_SMS_OTP_EXP: ${SMS_OTP_EXP}
-      # GOTRUE_SMS_OTP_LENGTH: ${SMS_OTP_LENGTH}
-      # GOTRUE_SMS_MAX_FREQUENCY: ${SMS_MAX_FREQUENCY}
-      # GOTRUE_SMS_TEMPLATE: ${SMS_TEMPLATE}
-
-      # Twilio credentials (when SMS_PROVIDER=twilio)
-      # GOTRUE_SMS_TWILIO_ACCOUNT_SID: ${SMS_TWILIO_ACCOUNT_SID}
-      # GOTRUE_SMS_TWILIO_AUTH_TOKEN: ${SMS_TWILIO_AUTH_TOKEN}
-      # GOTRUE_SMS_TWILIO_MESSAGE_SERVICE_SID: ${SMS_TWILIO_MESSAGE_SERVICE_SID}
-
-      # Test OTP mappings for development
-      # GOTRUE_SMS_TEST_OTP: ${SMS_TEST_OTP}
-
-      # Uncomment to configure multi-factor authentication (MFA).
-      # GOTRUE_MFA_TOTP_ENROLL_ENABLED: ${MFA_TOTP_ENROLL_ENABLED}
-      # GOTRUE_MFA_TOTP_VERIFY_ENABLED: ${MFA_TOTP_VERIFY_ENABLED}
-      # GOTRUE_MFA_PHONE_ENROLL_ENABLED: ${MFA_PHONE_ENROLL_ENABLED}
-      # GOTRUE_MFA_PHONE_VERIFY_ENABLED: ${MFA_PHONE_VERIFY_ENABLED}
-      # GOTRUE_MFA_MAX_ENROLLED_FACTORS: ${MFA_MAX_ENROLLED_FACTORS}
-
-      # Uncomment to enable custom access token hook.
-      # See: https://supabase.com/docs/guides/auth/auth-hooks for
-      # full list of hooks and additional details about custom_access_token_hook
-
-      # GOTRUE_HOOK_CUSTOM_ACCESS_TOKEN_ENABLED: "true"
-      # GOTRUE_HOOK_CUSTOM_ACCESS_TOKEN_URI: "pg-functions://postgres/public/custom_access_token_hook"
-      # GOTRUE_HOOK_CUSTOM_ACCESS_TOKEN_SECRETS: "<standard-base64-secret>"
-
-      # GOTRUE_HOOK_MFA_VERIFICATION_ATTEMPT_ENABLED: "true"
-      # GOTRUE_HOOK_MFA_VERIFICATION_ATTEMPT_URI: "pg-functions://postgres/public/mfa_verification_attempt"
-
-      # GOTRUE_HOOK_PASSWORD_VERIFICATION_ATTEMPT_ENABLED: "true"
-      # GOTRUE_HOOK_PASSWORD_VERIFICATION_ATTEMPT_URI: "pg-functions://postgres/public/password_verification_attempt"
-
-      # GOTRUE_HOOK_SEND_SMS_ENABLED: "false"
-      # GOTRUE_HOOK_SEND_SMS_URI: "pg-functions://postgres/public/custom_access_token_hook"
-      # GOTRUE_HOOK_SEND_SMS_SECRETS: "v1,whsec_VGhpcyBpcyBhbiBleGFtcGxlIG9mIGEgc2hvcnRlciBCYXNlNjQgc3RyaW5n"
-
-      # GOTRUE_HOOK_SEND_EMAIL_ENABLED: "false"
-      # GOTRUE_HOOK_SEND_EMAIL_URI: "http://host.docker.internal:54321/functions/v1/email_sender"
-      # GOTRUE_HOOK_SEND_EMAIL_SECRETS: "v1,whsec_VGhpcyBpcyBhbiBleGFtcGxlIG9mIGEgc2hvcnRlciBCYXNlNjQgc3RyaW5n"
 
   rest:
     container_name: supabase-rest
@@ -234,7 +159,6 @@ services:
     restart: unless-stopped
     depends_on:
       db:
-        # Disable this if you are using an external Postgres database
         condition: service_healthy
       analytics:
         condition: service_healthy
@@ -249,13 +173,11 @@ services:
     command: [ "postgrest" ]
 
   realtime:
-    # This container name looks inconsistent but is correct because realtime constructs tenant id by parsing the subdomain
     container_name: realtime-dev.supabase-realtime
-    image: ghcr.io/mbzadev/realtime-supabase:v2.78.11
+    image: ghcr.io/mbzadev/realtime-supabase:v2.78.15
     restart: unless-stopped
     depends_on:
       db:
-        # Disable this if you are using an external Postgres database
         condition: service_healthy
       analytics:
         condition: service_healthy
@@ -285,14 +207,12 @@ services:
       DISABLE_HEALTHCHECK_LOGGING: "true"
       METRICS_JWT_SECRET: ${JWT_SECRET}
 
-  # To use S3 backed storage: docker compose -f docker-compose.yml -f docker-compose.s3.yml up
   storage:
     container_name: supabase-storage
-    image: ghcr.io/mbzadev/storage-api-supabase:v1.37.8
+    image: supabase/storage-api:latest
     restart: unless-stopped
     depends_on:
       db:
-        # Disable this if you are using an external Postgres database
         condition: service_healthy
       rest:
         condition: service_started
@@ -312,9 +232,7 @@ services:
       REQUEST_ALLOW_X_FORWARDED_PATH: "true"
       FILE_SIZE_LIMIT: 52428800
       STORAGE_BACKEND: s3
-      # S3 bucket when using S3 backend, directory name when using 'file'
       GLOBAL_S3_BUCKET: ${GLOBAL_S3_BUCKET}
-      # S3 Backend configuration
       GLOBAL_S3_ENDPOINT: ${GLOBAL_S3_ENDPOINT}
       GLOBAL_S3_PROTOCOL: https
       GLOBAL_S3_FORCE_PATH_STYLE: "true"
@@ -322,13 +240,10 @@ services:
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
       FILE_STORAGE_BACKEND_PATH: /var/lib/storage
       TENANT_ID: ${STORAGE_TENANT_ID}
-      # TODO: https://github.com/supabase/storage-api/issues/55
       REGION: enam
       ENABLE_IMAGE_TRANSFORMATION: "true"
       IMGPROXY_URL: http://imgproxy:5001
-      # Cloudflare R2 specific fix for TUS resumable uploads (R2 does not support x-amz-tagging)
       TUS_ALLOW_S3_TAGS: "false"
-      # S3 protocol endpoint configuration
       S3_PROTOCOL_ACCESS_KEY_ID: ${S3_PROTOCOL_ACCESS_KEY_ID:-${AWS_ACCESS_KEY_ID}}
       S3_PROTOCOL_ACCESS_KEY_SECRET: ${S3_PROTOCOL_ACCESS_KEY_SECRET:-${AWS_SECRET_ACCESS_KEY}}
     volumes:
@@ -354,11 +269,10 @@ services:
 
   meta:
     container_name: supabase-meta
-    image: ghcr.io/mbzadev/postgres-meta-supabase:v0.95.2
+    image: supabase/postgres-meta:v0.96.1
     restart: unless-stopped
     depends_on:
       db:
-        # Disable this if you are using an external Postgres database
         condition: service_healthy
       analytics:
         condition: service_healthy
@@ -373,7 +287,7 @@ services:
 
   functions:
     container_name: supabase-edge-functions
-    image: ghcr.io/mbzadev/edge-runtime-supabase:v1.70.3
+    image: supabase/edge-runtime:v1.71.2
     restart: unless-stopped
     volumes:
       - ./volumes/functions:/home/deno/functions:Z
@@ -388,25 +302,16 @@ services:
       SUPABASE_ANON_KEY: ${ANON_KEY}
       SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
       SUPABASE_DB_URL: postgresql://postgres:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
-      # TODO: Allow configuring VERIFY_JWT per function. This PR might help: https://github.com/supabase/cli/pull/786
       VERIFY_JWT: "${FUNCTIONS_VERIFY_JWT}"
-    command: ["start", "--main-service", "/home/deno/functions/main"]
+    command: [ "start", "--main-service", "/home/deno/functions/main" ]
     env_file:
       - path: ./volumes/functions/secrets.env
         required: false
 
   analytics:
     container_name: supabase-analytics
-    image: ghcr.io/mbzadev/logflare-supabase:1.31.2
+    image: supabase/logflare:1.34.14
     restart: unless-stopped
-    # ports:
-    #   - 4000:4000
-    # Uncomment to use Big Query backend for analytics
-    # volumes:
-    #   - type: bind
-    #     source: ${PWD}/gcloud.json
-    #     target: /opt/app/rel/logflare/bin/gcloud.json
-    #     read_only: true
     healthcheck:
       test: [ "CMD", "curl", "http://localhost:4000/health" ]
       timeout: 5s
@@ -415,7 +320,6 @@ services:
       start_period: 20s
     depends_on:
       db:
-        # Disable this if you are using an external Postgres database
         condition: service_healthy
     environment:
       LOGFLARE_NODE_HOST: 127.0.0.1
@@ -430,36 +334,23 @@ services:
       LOGFLARE_SINGLE_TENANT: true
       LOGFLARE_SUPABASE_MODE: true
 
-      # Comment variables to use Big Query backend for analytics
       POSTGRES_BACKEND_URL: postgresql://supabase_admin:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/_supabase
       POSTGRES_BACKEND_SCHEMA: _analytics
       LOGFLARE_FEATURE_FLAG_OVERRIDE: multibackend=true
-      # Uncomment to use Big Query backend for analytics
-      # GOOGLE_PROJECT_ID: ${GOOGLE_PROJECT_ID}
-      # GOOGLE_PROJECT_NUMBER: ${GOOGLE_PROJECT_NUMBER}
 
-      # Comment out everything below this point if you are using an external Postgres database
   db:
     container_name: supabase-db
-    image: ghcr.io/mbzadev/postgres-supabase:15.8.1.085
+    image: supabase/postgres:17.6.1.097
     restart: unless-stopped
     volumes:
       - ./volumes/db/realtime.sql:/docker-entrypoint-initdb.d/migrations/99-realtime.sql:Z
-      # Must be superuser to create event trigger
       - ./volumes/db/webhooks.sql:/docker-entrypoint-initdb.d/init-scripts/98-webhooks.sql:Z
-      # Must be superuser to alter reserved role
       - ./volumes/db/roles.sql:/docker-entrypoint-initdb.d/init-scripts/99-roles.sql:Z
-      # Initialize the database settings with JWT_SECRET and JWT_EXP
       - ./volumes/db/jwt.sql:/docker-entrypoint-initdb.d/init-scripts/99-jwt.sql:Z
-      # PGDATA directory is persisted between restarts
       - ./volumes/db/data:/var/lib/postgresql/data:Z
-      # Changes required for internal supabase data such as _analytics
       - ./volumes/db/_supabase.sql:/docker-entrypoint-initdb.d/migrations/97-_supabase.sql:Z
-      # Changes required for Analytics support
       - ./volumes/db/logs.sql:/docker-entrypoint-initdb.d/migrations/99-logs.sql:Z
-      # Changes required for Pooler support
       - ./volumes/db/pooler.sql:/docker-entrypoint-initdb.d/migrations/99-pooler.sql:Z
-      # Use named volume to persist pgsodium decryption key between restarts
       - db-config:/etc/postgresql-custom
     healthcheck:
       test: [ "CMD", "pg_isready", "-U", "postgres", "-h", "localhost" ]
@@ -506,7 +397,6 @@ services:
     command: [ "--config", "/etc/vector/vector.yml" ]
     security_opt:
       - "label=disable"
-  # Update the DATABASE_URL if you are using an external Postgres database
   supavisor:
     container_name: supabase-pooler
     image: ghcr.io/mbzadev/supavisor-supabase:2.7.4

@@ -223,7 +223,7 @@ services:
 
   ## Secure Database routes
   - name: meta
-    _comment: 'pg-meta: /pg/* -> http://pg-meta:8080/*'
+    _comment: 'pg-meta: /pg/* -> http://meta:8080/*'
     url: http://meta:8080/
     routes:
       - name: meta-all
@@ -293,6 +293,18 @@ services:
     plugins:
       - name: cors
 
+  ## Platform API - Studio management API (auth config, users, notifications, etc.)
+  ## Intercepts /api/platform/* before Studio's IS_PLATFORM-gated Next.js routes
+  - name: platform-api
+    url: http://functions-manager:8085
+    routes:
+      - name: platform-api-all
+        strip_path: false
+        paths:
+          - /api/platform/
+    plugins:
+      - name: cors
+
   ## Protected Dashboard - catch all remaining routes
   - name: dashboard
     _comment: 'Studio: /* -> http://studio:3000/*'
@@ -304,16 +316,6 @@ services:
           - /
     plugins:
       - name: cors
-      - name: response-transformer
-        config:
-          add:
-            headers:
-              - Cache-Control:no-cache, no-store, must-revalidate
-          append: {}
-          remove:
-            headers:
-              - Cache-Control
-          replace: {}
       - name: basic-auth
         config:
           hide_credentials: true

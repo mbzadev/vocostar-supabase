@@ -3,6 +3,8 @@ name: Build Custom Studio Docker Image
 on:
   push:
     paths:
+      - 'apps/studio/**'
+      - 'packages/ui/build/**'
       - '.github/workflows/build-studio.yml'
   workflow_dispatch:
 
@@ -15,281 +17,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Supabase Repository
+      - name: Checkout Repository
         uses: actions/checkout@v4
-        with:
-          repository: supabase/supabase
-          # Checkout the commit matching 2026.03.04-sha-0043607
-          ref: 00436076bbd542f8e9593ae13811dee1cf353f19
-          path: supabase
-
-      - name: Patch AuthLayout UI to show all Auth configuration menus
-        run: |
-          # Replace IS_PLATFORM with true only in the Auth sidebar menu file
-          # This shows hidden Auth menus (Sign In / Providers, Sessions, Auth Hooks, etc.)
-          # without affecting the rest of the app (especially API_URL computation)
-          sed -i "s/IS_PLATFORM/true/g" supabase/apps/studio/components/layouts/AuthLayout/AuthLayout.utils.ts
-          # Clean up the now-unused import from the patched file
-          sed -i "s/import { true } from 'lib\/constants'//g" supabase/apps/studio/components/layouts/AuthLayout/AuthLayout.utils.ts
-          echo "=== Patched file preview ==="
-          head -5 supabase/apps/studio/components/layouts/AuthLayout/AuthLayout.utils.ts
-
-      - name: Create missing Auth Config API route
-        run: |
-          mkdir -p supabase/apps/studio/pages/api/platform/auth/\[ref\]
-          cat << 'EOF' > supabase/apps/studio/pages/api/platform/auth/\[ref\]/config.ts
-          import { NextApiRequest, NextApiResponse } from 'next'
-
-          export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-            if (req.method === 'GET') {
-              return res.status(200).json({
-                API_MAX_REQUEST_DURATION: parseInt(process.env.GOTRUE_API_MAX_REQUEST_DURATION || '0', 10),
-                AUDIT_LOG_DISABLE_POSTGRES: process.env.GOTRUE_AUDIT_LOG_DISABLE_POSTGRES === 'true' || false,
-                CUSTOM_OAUTH_ENABLED: process.env.GOTRUE_CUSTOM_OAUTH_ENABLED === 'true' || false,
-                CUSTOM_OAUTH_MAX_PROVIDERS: parseInt(process.env.GOTRUE_CUSTOM_OAUTH_MAX_PROVIDERS || '0', 10),
-                DB_MAX_POOL_SIZE: parseInt(process.env.GOTRUE_DB_MAX_POOL_SIZE || '0', 10),
-                DB_MAX_POOL_SIZE_UNIT: process.env.GOTRUE_DB_MAX_POOL_SIZE_UNIT || '',
-                DISABLE_SIGNUP: process.env.GOTRUE_DISABLE_SIGNUP === 'true' || false,
-                EXTERNAL_ANONYMOUS_USERS_ENABLED: process.env.GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED === 'true' || false,
-                EXTERNAL_APPLE_ADDITIONAL_CLIENT_IDS: process.env.GOTRUE_EXTERNAL_APPLE_ADDITIONAL_CLIENT_IDS || '',
-                EXTERNAL_APPLE_CLIENT_ID: process.env.GOTRUE_EXTERNAL_APPLE_CLIENT_ID || '',
-                EXTERNAL_APPLE_EMAIL_OPTIONAL: process.env.GOTRUE_EXTERNAL_APPLE_EMAIL_OPTIONAL === 'true' || false,
-                EXTERNAL_APPLE_ENABLED: process.env.GOTRUE_EXTERNAL_APPLE_ENABLED === 'true' || false,
-                EXTERNAL_APPLE_SECRET: process.env.GOTRUE_EXTERNAL_APPLE_SECRET || '',
-                EXTERNAL_AZURE_CLIENT_ID: process.env.GOTRUE_EXTERNAL_AZURE_CLIENT_ID || '',
-                EXTERNAL_AZURE_EMAIL_OPTIONAL: process.env.GOTRUE_EXTERNAL_AZURE_EMAIL_OPTIONAL === 'true' || false,
-                EXTERNAL_AZURE_ENABLED: process.env.GOTRUE_EXTERNAL_AZURE_ENABLED === 'true' || false,
-                EXTERNAL_AZURE_SECRET: process.env.GOTRUE_EXTERNAL_AZURE_SECRET || '',
-                EXTERNAL_AZURE_URL: process.env.GOTRUE_EXTERNAL_AZURE_URL || '',
-                EXTERNAL_BITBUCKET_CLIENT_ID: process.env.GOTRUE_EXTERNAL_BITBUCKET_CLIENT_ID || '',
-                EXTERNAL_BITBUCKET_EMAIL_OPTIONAL: process.env.GOTRUE_EXTERNAL_BITBUCKET_EMAIL_OPTIONAL === 'true' || false,
-                EXTERNAL_BITBUCKET_ENABLED: process.env.GOTRUE_EXTERNAL_BITBUCKET_ENABLED === 'true' || false,
-                EXTERNAL_BITBUCKET_SECRET: process.env.GOTRUE_EXTERNAL_BITBUCKET_SECRET || '',
-                EXTERNAL_DISCORD_CLIENT_ID: process.env.GOTRUE_EXTERNAL_DISCORD_CLIENT_ID || '',
-                EXTERNAL_DISCORD_EMAIL_OPTIONAL: process.env.GOTRUE_EXTERNAL_DISCORD_EMAIL_OPTIONAL === 'true' || false,
-                EXTERNAL_DISCORD_ENABLED: process.env.GOTRUE_EXTERNAL_DISCORD_ENABLED === 'true' || false,
-                EXTERNAL_DISCORD_SECRET: process.env.GOTRUE_EXTERNAL_DISCORD_SECRET || '',
-                EXTERNAL_EMAIL_ENABLED: process.env.GOTRUE_EXTERNAL_EMAIL_ENABLED === 'true' || false,
-                EXTERNAL_FACEBOOK_CLIENT_ID: process.env.GOTRUE_EXTERNAL_FACEBOOK_CLIENT_ID || '',
-                EXTERNAL_FACEBOOK_EMAIL_OPTIONAL: process.env.GOTRUE_EXTERNAL_FACEBOOK_EMAIL_OPTIONAL === 'true' || false,
-                EXTERNAL_FACEBOOK_ENABLED: process.env.GOTRUE_EXTERNAL_FACEBOOK_ENABLED === 'true' || false,
-                EXTERNAL_FACEBOOK_SECRET: process.env.GOTRUE_EXTERNAL_FACEBOOK_SECRET || '',
-                EXTERNAL_FIGMA_CLIENT_ID: process.env.GOTRUE_EXTERNAL_FIGMA_CLIENT_ID || '',
-                EXTERNAL_FIGMA_EMAIL_OPTIONAL: process.env.GOTRUE_EXTERNAL_FIGMA_EMAIL_OPTIONAL === 'true' || false,
-                EXTERNAL_FIGMA_ENABLED: process.env.GOTRUE_EXTERNAL_FIGMA_ENABLED === 'true' || false,
-                EXTERNAL_FIGMA_SECRET: process.env.GOTRUE_EXTERNAL_FIGMA_SECRET || '',
-                EXTERNAL_GITHUB_CLIENT_ID: process.env.GOTRUE_EXTERNAL_GITHUB_CLIENT_ID || '',
-                EXTERNAL_GITHUB_EMAIL_OPTIONAL: process.env.GOTRUE_EXTERNAL_GITHUB_EMAIL_OPTIONAL === 'true' || false,
-                EXTERNAL_GITHUB_ENABLED: process.env.GOTRUE_EXTERNAL_GITHUB_ENABLED === 'true' || false,
-                EXTERNAL_GITHUB_SECRET: process.env.GOTRUE_EXTERNAL_GITHUB_SECRET || '',
-                EXTERNAL_GITLAB_CLIENT_ID: process.env.GOTRUE_EXTERNAL_GITLAB_CLIENT_ID || '',
-                EXTERNAL_GITLAB_EMAIL_OPTIONAL: process.env.GOTRUE_EXTERNAL_GITLAB_EMAIL_OPTIONAL === 'true' || false,
-                EXTERNAL_GITLAB_ENABLED: process.env.GOTRUE_EXTERNAL_GITLAB_ENABLED === 'true' || false,
-                EXTERNAL_GITLAB_SECRET: process.env.GOTRUE_EXTERNAL_GITLAB_SECRET || '',
-                EXTERNAL_GITLAB_URL: process.env.GOTRUE_EXTERNAL_GITLAB_URL || '',
-                EXTERNAL_GOOGLE_ADDITIONAL_CLIENT_IDS: process.env.GOTRUE_EXTERNAL_GOOGLE_ADDITIONAL_CLIENT_IDS || '',
-                EXTERNAL_GOOGLE_CLIENT_ID: process.env.GOTRUE_EXTERNAL_GOOGLE_CLIENT_ID || '',
-                EXTERNAL_GOOGLE_EMAIL_OPTIONAL: process.env.GOTRUE_EXTERNAL_GOOGLE_EMAIL_OPTIONAL === 'true' || false,
-                EXTERNAL_GOOGLE_ENABLED: process.env.GOTRUE_EXTERNAL_GOOGLE_ENABLED === 'true' || false,
-                EXTERNAL_GOOGLE_SECRET: process.env.GOTRUE_EXTERNAL_GOOGLE_SECRET || '',
-                EXTERNAL_GOOGLE_SKIP_NONCE_CHECK: process.env.GOTRUE_EXTERNAL_GOOGLE_SKIP_NONCE_CHECK === 'true' || false,
-                EXTERNAL_KAKAO_CLIENT_ID: process.env.GOTRUE_EXTERNAL_KAKAO_CLIENT_ID || '',
-                EXTERNAL_KAKAO_EMAIL_OPTIONAL: process.env.GOTRUE_EXTERNAL_KAKAO_EMAIL_OPTIONAL === 'true' || false,
-                EXTERNAL_KAKAO_ENABLED: process.env.GOTRUE_EXTERNAL_KAKAO_ENABLED === 'true' || false,
-                EXTERNAL_KAKAO_SECRET: process.env.GOTRUE_EXTERNAL_KAKAO_SECRET || '',
-                EXTERNAL_KEYCLOAK_CLIENT_ID: process.env.GOTRUE_EXTERNAL_KEYCLOAK_CLIENT_ID || '',
-                EXTERNAL_KEYCLOAK_EMAIL_OPTIONAL: process.env.GOTRUE_EXTERNAL_KEYCLOAK_EMAIL_OPTIONAL === 'true' || false,
-                EXTERNAL_KEYCLOAK_ENABLED: process.env.GOTRUE_EXTERNAL_KEYCLOAK_ENABLED === 'true' || false,
-                EXTERNAL_KEYCLOAK_SECRET: process.env.GOTRUE_EXTERNAL_KEYCLOAK_SECRET || '',
-                EXTERNAL_KEYCLOAK_URL: process.env.GOTRUE_EXTERNAL_KEYCLOAK_URL || '',
-                EXTERNAL_LINKEDIN_OIDC_CLIENT_ID: process.env.GOTRUE_EXTERNAL_LINKEDIN_OIDC_CLIENT_ID || '',
-                EXTERNAL_LINKEDIN_OIDC_EMAIL_OPTIONAL: process.env.GOTRUE_EXTERNAL_LINKEDIN_OIDC_EMAIL_OPTIONAL === 'true' || false,
-                EXTERNAL_LINKEDIN_OIDC_ENABLED: process.env.GOTRUE_EXTERNAL_LINKEDIN_OIDC_ENABLED === 'true' || false,
-                EXTERNAL_LINKEDIN_OIDC_SECRET: process.env.GOTRUE_EXTERNAL_LINKEDIN_OIDC_SECRET || '',
-                EXTERNAL_NOTION_CLIENT_ID: process.env.GOTRUE_EXTERNAL_NOTION_CLIENT_ID || '',
-                EXTERNAL_NOTION_EMAIL_OPTIONAL: process.env.GOTRUE_EXTERNAL_NOTION_EMAIL_OPTIONAL === 'true' || false,
-                EXTERNAL_NOTION_ENABLED: process.env.GOTRUE_EXTERNAL_NOTION_ENABLED === 'true' || false,
-                EXTERNAL_NOTION_SECRET: process.env.GOTRUE_EXTERNAL_NOTION_SECRET || '',
-                EXTERNAL_PHONE_ENABLED: process.env.GOTRUE_EXTERNAL_PHONE_ENABLED === 'true' || false,
-                EXTERNAL_SLACK_CLIENT_ID: process.env.GOTRUE_EXTERNAL_SLACK_CLIENT_ID || '',
-                EXTERNAL_SLACK_EMAIL_OPTIONAL: process.env.GOTRUE_EXTERNAL_SLACK_EMAIL_OPTIONAL === 'true' || false,
-                EXTERNAL_SLACK_ENABLED: process.env.GOTRUE_EXTERNAL_SLACK_ENABLED === 'true' || false,
-                EXTERNAL_SLACK_OIDC_CLIENT_ID: process.env.GOTRUE_EXTERNAL_SLACK_OIDC_CLIENT_ID || '',
-                EXTERNAL_SLACK_OIDC_EMAIL_OPTIONAL: process.env.GOTRUE_EXTERNAL_SLACK_OIDC_EMAIL_OPTIONAL === 'true' || false,
-                EXTERNAL_SLACK_OIDC_ENABLED: process.env.GOTRUE_EXTERNAL_SLACK_OIDC_ENABLED === 'true' || false,
-                EXTERNAL_SLACK_OIDC_SECRET: process.env.GOTRUE_EXTERNAL_SLACK_OIDC_SECRET || '',
-                EXTERNAL_SLACK_SECRET: process.env.GOTRUE_EXTERNAL_SLACK_SECRET || '',
-                EXTERNAL_SPOTIFY_CLIENT_ID: process.env.GOTRUE_EXTERNAL_SPOTIFY_CLIENT_ID || '',
-                EXTERNAL_SPOTIFY_EMAIL_OPTIONAL: process.env.GOTRUE_EXTERNAL_SPOTIFY_EMAIL_OPTIONAL === 'true' || false,
-                EXTERNAL_SPOTIFY_ENABLED: process.env.GOTRUE_EXTERNAL_SPOTIFY_ENABLED === 'true' || false,
-                EXTERNAL_SPOTIFY_SECRET: process.env.GOTRUE_EXTERNAL_SPOTIFY_SECRET || '',
-                EXTERNAL_TWITCH_CLIENT_ID: process.env.GOTRUE_EXTERNAL_TWITCH_CLIENT_ID || '',
-                EXTERNAL_TWITCH_EMAIL_OPTIONAL: process.env.GOTRUE_EXTERNAL_TWITCH_EMAIL_OPTIONAL === 'true' || false,
-                EXTERNAL_TWITCH_ENABLED: process.env.GOTRUE_EXTERNAL_TWITCH_ENABLED === 'true' || false,
-                EXTERNAL_TWITCH_SECRET: process.env.GOTRUE_EXTERNAL_TWITCH_SECRET || '',
-                EXTERNAL_TWITTER_CLIENT_ID: process.env.GOTRUE_EXTERNAL_TWITTER_CLIENT_ID || '',
-                EXTERNAL_TWITTER_EMAIL_OPTIONAL: process.env.GOTRUE_EXTERNAL_TWITTER_EMAIL_OPTIONAL === 'true' || false,
-                EXTERNAL_TWITTER_ENABLED: process.env.GOTRUE_EXTERNAL_TWITTER_ENABLED === 'true' || false,
-                EXTERNAL_TWITTER_SECRET: process.env.GOTRUE_EXTERNAL_TWITTER_SECRET || '',
-                EXTERNAL_WEB3_ETHEREUM_ENABLED: process.env.GOTRUE_EXTERNAL_WEB3_ETHEREUM_ENABLED === 'true' || false,
-                EXTERNAL_WEB3_SOLANA_ENABLED: process.env.GOTRUE_EXTERNAL_WEB3_SOLANA_ENABLED === 'true' || false,
-                EXTERNAL_WORKOS_CLIENT_ID: process.env.GOTRUE_EXTERNAL_WORKOS_CLIENT_ID || '',
-                EXTERNAL_WORKOS_SECRET: process.env.GOTRUE_EXTERNAL_WORKOS_SECRET || '',
-                EXTERNAL_WORKOS_URL: process.env.GOTRUE_EXTERNAL_WORKOS_URL || '',
-                EXTERNAL_ZOOM_CLIENT_ID: process.env.GOTRUE_EXTERNAL_ZOOM_CLIENT_ID || '',
-                EXTERNAL_ZOOM_EMAIL_OPTIONAL: process.env.GOTRUE_EXTERNAL_ZOOM_EMAIL_OPTIONAL === 'true' || false,
-                EXTERNAL_ZOOM_ENABLED: process.env.GOTRUE_EXTERNAL_ZOOM_ENABLED === 'true' || false,
-                EXTERNAL_ZOOM_SECRET: process.env.GOTRUE_EXTERNAL_ZOOM_SECRET || '',
-                HOOK_AFTER_USER_CREATED_ENABLED: process.env.GOTRUE_HOOK_AFTER_USER_CREATED_ENABLED === 'true' || false,
-                HOOK_AFTER_USER_CREATED_SECRETS: process.env.GOTRUE_HOOK_AFTER_USER_CREATED_SECRETS || '',
-                HOOK_AFTER_USER_CREATED_URI: process.env.GOTRUE_HOOK_AFTER_USER_CREATED_URI || '',
-                HOOK_BEFORE_USER_CREATED_ENABLED: process.env.GOTRUE_HOOK_BEFORE_USER_CREATED_ENABLED === 'true' || false,
-                HOOK_BEFORE_USER_CREATED_SECRETS: process.env.GOTRUE_HOOK_BEFORE_USER_CREATED_SECRETS || '',
-                HOOK_BEFORE_USER_CREATED_URI: process.env.GOTRUE_HOOK_BEFORE_USER_CREATED_URI || '',
-                HOOK_CUSTOM_ACCESS_TOKEN_ENABLED: process.env.GOTRUE_HOOK_CUSTOM_ACCESS_TOKEN_ENABLED === 'true' || false,
-                HOOK_CUSTOM_ACCESS_TOKEN_SECRETS: process.env.GOTRUE_HOOK_CUSTOM_ACCESS_TOKEN_SECRETS || '',
-                HOOK_CUSTOM_ACCESS_TOKEN_URI: process.env.GOTRUE_HOOK_CUSTOM_ACCESS_TOKEN_URI || '',
-                HOOK_MFA_VERIFICATION_ATTEMPT_ENABLED: process.env.GOTRUE_HOOK_MFA_VERIFICATION_ATTEMPT_ENABLED === 'true' || false,
-                HOOK_MFA_VERIFICATION_ATTEMPT_SECRETS: process.env.GOTRUE_HOOK_MFA_VERIFICATION_ATTEMPT_SECRETS || '',
-                HOOK_MFA_VERIFICATION_ATTEMPT_URI: process.env.GOTRUE_HOOK_MFA_VERIFICATION_ATTEMPT_URI || '',
-                HOOK_PASSWORD_VERIFICATION_ATTEMPT_ENABLED: process.env.GOTRUE_HOOK_PASSWORD_VERIFICATION_ATTEMPT_ENABLED === 'true' || false,
-                HOOK_PASSWORD_VERIFICATION_ATTEMPT_SECRETS: process.env.GOTRUE_HOOK_PASSWORD_VERIFICATION_ATTEMPT_SECRETS || '',
-                HOOK_PASSWORD_VERIFICATION_ATTEMPT_URI: process.env.GOTRUE_HOOK_PASSWORD_VERIFICATION_ATTEMPT_URI || '',
-                HOOK_SEND_EMAIL_ENABLED: process.env.GOTRUE_HOOK_SEND_EMAIL_ENABLED === 'true' || false,
-                HOOK_SEND_EMAIL_SECRETS: process.env.GOTRUE_HOOK_SEND_EMAIL_SECRETS || '',
-                HOOK_SEND_EMAIL_URI: process.env.GOTRUE_HOOK_SEND_EMAIL_URI || '',
-                HOOK_SEND_SMS_ENABLED: process.env.GOTRUE_HOOK_SEND_SMS_ENABLED === 'true' || false,
-                HOOK_SEND_SMS_SECRETS: process.env.GOTRUE_HOOK_SEND_SMS_SECRETS || '',
-                HOOK_SEND_SMS_URI: process.env.GOTRUE_HOOK_SEND_SMS_URI || '',
-                INDEX_WORKER_ENSURE_USER_SEARCH_INDEXES_EXIST: process.env.GOTRUE_INDEX_WORKER_ENSURE_USER_SEARCH_INDEXES_EXIST === 'true' || false,
-                JWT_EXP: parseInt(process.env.GOTRUE_JWT_EXP || '0', 10),
-                MAILER_ALLOW_UNVERIFIED_EMAIL_SIGN_INS: process.env.GOTRUE_MAILER_ALLOW_UNVERIFIED_EMAIL_SIGN_INS === 'true' || false,
-                MAILER_AUTOCONFIRM: process.env.GOTRUE_MAILER_AUTOCONFIRM === 'true' || false,
-                MAILER_NOTIFICATIONS_EMAIL_CHANGED_ENABLED: process.env.GOTRUE_MAILER_NOTIFICATIONS_EMAIL_CHANGED_ENABLED === 'true' || false,
-                MAILER_NOTIFICATIONS_IDENTITY_LINKED_ENABLED: process.env.GOTRUE_MAILER_NOTIFICATIONS_IDENTITY_LINKED_ENABLED === 'true' || false,
-                MAILER_NOTIFICATIONS_IDENTITY_UNLINKED_ENABLED: process.env.GOTRUE_MAILER_NOTIFICATIONS_IDENTITY_UNLINKED_ENABLED === 'true' || false,
-                MAILER_NOTIFICATIONS_MFA_FACTOR_ENROLLED_ENABLED: process.env.GOTRUE_MAILER_NOTIFICATIONS_MFA_FACTOR_ENROLLED_ENABLED === 'true' || false,
-                MAILER_NOTIFICATIONS_MFA_FACTOR_UNENROLLED_ENABLED: process.env.GOTRUE_MAILER_NOTIFICATIONS_MFA_FACTOR_UNENROLLED_ENABLED === 'true' || false,
-                MAILER_NOTIFICATIONS_PASSWORD_CHANGED_ENABLED: process.env.GOTRUE_MAILER_NOTIFICATIONS_PASSWORD_CHANGED_ENABLED === 'true' || false,
-                MAILER_NOTIFICATIONS_PHONE_CHANGED_ENABLED: process.env.GOTRUE_MAILER_NOTIFICATIONS_PHONE_CHANGED_ENABLED === 'true' || false,
-                MAILER_OTP_EXP: parseInt(process.env.GOTRUE_MAILER_OTP_EXP || '0', 10),
-                MAILER_OTP_LENGTH: parseInt(process.env.GOTRUE_MAILER_OTP_LENGTH || '0', 10),
-                MAILER_SECURE_EMAIL_CHANGE_ENABLED: process.env.GOTRUE_MAILER_SECURE_EMAIL_CHANGE_ENABLED === 'true' || false,
-                MAILER_SUBJECTS_CONFIRMATION: process.env.GOTRUE_MAILER_SUBJECTS_CONFIRMATION || '',
-                MAILER_SUBJECTS_EMAIL_CHANGE: process.env.GOTRUE_MAILER_SUBJECTS_EMAIL_CHANGE || '',
-                MAILER_SUBJECTS_EMAIL_CHANGED_NOTIFICATION: process.env.GOTRUE_MAILER_SUBJECTS_EMAIL_CHANGED_NOTIFICATION || '',
-                MAILER_SUBJECTS_IDENTITY_LINKED_NOTIFICATION: process.env.GOTRUE_MAILER_SUBJECTS_IDENTITY_LINKED_NOTIFICATION || '',
-                MAILER_SUBJECTS_IDENTITY_UNLINKED_NOTIFICATION: process.env.GOTRUE_MAILER_SUBJECTS_IDENTITY_UNLINKED_NOTIFICATION || '',
-                MAILER_SUBJECTS_INVITE: process.env.GOTRUE_MAILER_SUBJECTS_INVITE || '',
-                MAILER_SUBJECTS_MAGIC_LINK: process.env.GOTRUE_MAILER_SUBJECTS_MAGIC_LINK || '',
-                MAILER_SUBJECTS_MFA_FACTOR_ENROLLED_NOTIFICATION: process.env.GOTRUE_MAILER_SUBJECTS_MFA_FACTOR_ENROLLED_NOTIFICATION || '',
-                MAILER_SUBJECTS_MFA_FACTOR_UNENROLLED_NOTIFICATION: process.env.GOTRUE_MAILER_SUBJECTS_MFA_FACTOR_UNENROLLED_NOTIFICATION || '',
-                MAILER_SUBJECTS_PASSWORD_CHANGED_NOTIFICATION: process.env.GOTRUE_MAILER_SUBJECTS_PASSWORD_CHANGED_NOTIFICATION || '',
-                MAILER_SUBJECTS_PHONE_CHANGED_NOTIFICATION: process.env.GOTRUE_MAILER_SUBJECTS_PHONE_CHANGED_NOTIFICATION || '',
-                MAILER_SUBJECTS_REAUTHENTICATION: process.env.GOTRUE_MAILER_SUBJECTS_REAUTHENTICATION || '',
-                MAILER_SUBJECTS_RECOVERY: process.env.GOTRUE_MAILER_SUBJECTS_RECOVERY || '',
-                MAILER_TEMPLATES_CONFIRMATION_CONTENT: process.env.GOTRUE_MAILER_TEMPLATES_CONFIRMATION_CONTENT || '',
-                MAILER_TEMPLATES_EMAIL_CHANGE_CONTENT: process.env.GOTRUE_MAILER_TEMPLATES_EMAIL_CHANGE_CONTENT || '',
-                MAILER_TEMPLATES_EMAIL_CHANGED_NOTIFICATION_CONTENT: process.env.GOTRUE_MAILER_TEMPLATES_EMAIL_CHANGED_NOTIFICATION_CONTENT || '',
-                MAILER_TEMPLATES_IDENTITY_LINKED_NOTIFICATION_CONTENT: process.env.GOTRUE_MAILER_TEMPLATES_IDENTITY_LINKED_NOTIFICATION_CONTENT || '',
-                MAILER_TEMPLATES_IDENTITY_UNLINKED_NOTIFICATION_CONTENT: process.env.GOTRUE_MAILER_TEMPLATES_IDENTITY_UNLINKED_NOTIFICATION_CONTENT || '',
-                MAILER_TEMPLATES_INVITE_CONTENT: process.env.GOTRUE_MAILER_TEMPLATES_INVITE_CONTENT || '',
-                MAILER_TEMPLATES_MAGIC_LINK_CONTENT: process.env.GOTRUE_MAILER_TEMPLATES_MAGIC_LINK_CONTENT || '',
-                MAILER_TEMPLATES_MFA_FACTOR_ENROLLED_NOTIFICATION_CONTENT: process.env.GOTRUE_MAILER_TEMPLATES_MFA_FACTOR_ENROLLED_NOTIFICATION_CONTENT || '',
-                MAILER_TEMPLATES_MFA_FACTOR_UNENROLLED_NOTIFICATION_CONTENT: process.env.GOTRUE_MAILER_TEMPLATES_MFA_FACTOR_UNENROLLED_NOTIFICATION_CONTENT || '',
-                MAILER_TEMPLATES_PASSWORD_CHANGED_NOTIFICATION_CONTENT: process.env.GOTRUE_MAILER_TEMPLATES_PASSWORD_CHANGED_NOTIFICATION_CONTENT || '',
-                MAILER_TEMPLATES_PHONE_CHANGED_NOTIFICATION_CONTENT: process.env.GOTRUE_MAILER_TEMPLATES_PHONE_CHANGED_NOTIFICATION_CONTENT || '',
-                MAILER_TEMPLATES_REAUTHENTICATION_CONTENT: process.env.GOTRUE_MAILER_TEMPLATES_REAUTHENTICATION_CONTENT || '',
-                MAILER_TEMPLATES_RECOVERY_CONTENT: process.env.GOTRUE_MAILER_TEMPLATES_RECOVERY_CONTENT || '',
-                MFA_ALLOW_LOW_AAL: process.env.GOTRUE_MFA_ALLOW_LOW_AAL === 'true' || false,
-                MFA_MAX_ENROLLED_FACTORS: parseInt(process.env.GOTRUE_MFA_MAX_ENROLLED_FACTORS || '0', 10),
-                MFA_PHONE_ENROLL_ENABLED: process.env.GOTRUE_MFA_PHONE_ENROLL_ENABLED === 'true' || false,
-                MFA_PHONE_MAX_FREQUENCY: parseInt(process.env.GOTRUE_MFA_PHONE_MAX_FREQUENCY || '0', 10),
-                MFA_PHONE_OTP_LENGTH: parseInt(process.env.GOTRUE_MFA_PHONE_OTP_LENGTH || '0', 10),
-                MFA_PHONE_TEMPLATE: process.env.GOTRUE_MFA_PHONE_TEMPLATE || '',
-                MFA_PHONE_VERIFY_ENABLED: process.env.GOTRUE_MFA_PHONE_VERIFY_ENABLED === 'true' || false,
-                MFA_TOTP_ENROLL_ENABLED: process.env.GOTRUE_MFA_TOTP_ENROLL_ENABLED === 'true' || false,
-                MFA_TOTP_VERIFY_ENABLED: process.env.GOTRUE_MFA_TOTP_VERIFY_ENABLED === 'true' || false,
-                MFA_WEB_AUTHN_ENROLL_ENABLED: process.env.GOTRUE_MFA_WEB_AUTHN_ENROLL_ENABLED === 'true' || false,
-                MFA_WEB_AUTHN_VERIFY_ENABLED: process.env.GOTRUE_MFA_WEB_AUTHN_VERIFY_ENABLED === 'true' || false,
-                NIMBUS_OAUTH_CLIENT_ID: process.env.GOTRUE_NIMBUS_OAUTH_CLIENT_ID || '',
-                NIMBUS_OAUTH_CLIENT_SECRET: process.env.GOTRUE_NIMBUS_OAUTH_CLIENT_SECRET || '',
-                OAUTH_SERVER_ALLOW_DYNAMIC_REGISTRATION: process.env.GOTRUE_OAUTH_SERVER_ALLOW_DYNAMIC_REGISTRATION === 'true' || false,
-                OAUTH_SERVER_AUTHORIZATION_PATH: process.env.GOTRUE_OAUTH_SERVER_AUTHORIZATION_PATH || '',
-                OAUTH_SERVER_ENABLED: process.env.GOTRUE_OAUTH_SERVER_ENABLED === 'true' || false,
-                PASSWORD_HIBP_ENABLED: process.env.GOTRUE_PASSWORD_HIBP_ENABLED === 'true' || false,
-                PASSWORD_MIN_LENGTH: parseInt(process.env.GOTRUE_PASSWORD_MIN_LENGTH || '0', 10),
-                PASSWORD_REQUIRED_CHARACTERS: process.env.GOTRUE_PASSWORD_REQUIRED_CHARACTERS || '',
-                RATE_LIMIT_ANONYMOUS_USERS: parseInt(process.env.GOTRUE_RATE_LIMIT_ANONYMOUS_USERS || '0', 10),
-                RATE_LIMIT_EMAIL_SENT: parseInt(process.env.GOTRUE_RATE_LIMIT_EMAIL_SENT || '0', 10),
-                RATE_LIMIT_OTP: parseInt(process.env.GOTRUE_RATE_LIMIT_OTP || '0', 10),
-                RATE_LIMIT_SMS_SENT: parseInt(process.env.GOTRUE_RATE_LIMIT_SMS_SENT || '0', 10),
-                RATE_LIMIT_TOKEN_REFRESH: parseInt(process.env.GOTRUE_RATE_LIMIT_TOKEN_REFRESH || '0', 10),
-                RATE_LIMIT_VERIFY: parseInt(process.env.GOTRUE_RATE_LIMIT_VERIFY || '0', 10),
-                RATE_LIMIT_WEB3: parseInt(process.env.GOTRUE_RATE_LIMIT_WEB3 || '0', 10),
-                REFRESH_TOKEN_ROTATION_ENABLED: process.env.GOTRUE_REFRESH_TOKEN_ROTATION_ENABLED === 'true' || false,
-                SAML_ALLOW_ENCRYPTED_ASSERTIONS: process.env.GOTRUE_SAML_ALLOW_ENCRYPTED_ASSERTIONS === 'true' || false,
-                SAML_ENABLED: process.env.GOTRUE_SAML_ENABLED === 'true' || false,
-                SAML_EXTERNAL_URL: process.env.GOTRUE_SAML_EXTERNAL_URL || '',
-                SECURITY_CAPTCHA_ENABLED: process.env.GOTRUE_SECURITY_CAPTCHA_ENABLED === 'true' || false,
-                SECURITY_CAPTCHA_PROVIDER: process.env.GOTRUE_SECURITY_CAPTCHA_PROVIDER || '',
-                SECURITY_CAPTCHA_SECRET: process.env.GOTRUE_SECURITY_CAPTCHA_SECRET || '',
-                SECURITY_MANUAL_LINKING_ENABLED: process.env.GOTRUE_SECURITY_MANUAL_LINKING_ENABLED === 'true' || false,
-                SECURITY_REFRESH_TOKEN_REUSE_INTERVAL: parseInt(process.env.GOTRUE_SECURITY_REFRESH_TOKEN_REUSE_INTERVAL || '0', 10),
-                SECURITY_SB_FORWARDED_FOR_ENABLED: process.env.GOTRUE_SECURITY_SB_FORWARDED_FOR_ENABLED === 'true' || false,
-                SECURITY_UPDATE_PASSWORD_REQUIRE_REAUTHENTICATION: process.env.GOTRUE_SECURITY_UPDATE_PASSWORD_REQUIRE_REAUTHENTICATION === 'true' || false,
-                SESSIONS_INACTIVITY_TIMEOUT: parseInt(process.env.GOTRUE_SESSIONS_INACTIVITY_TIMEOUT || '0', 10),
-                SESSIONS_SINGLE_PER_USER: process.env.GOTRUE_SESSIONS_SINGLE_PER_USER === 'true' || false,
-                SESSIONS_TAGS: process.env.GOTRUE_SESSIONS_TAGS || '',
-                SESSIONS_TIMEBOX: parseInt(process.env.GOTRUE_SESSIONS_TIMEBOX || '0', 10),
-                SITE_URL: process.env.GOTRUE_SITE_URL || '',
-                SMS_AUTOCONFIRM: process.env.GOTRUE_SMS_AUTOCONFIRM === 'true' || false,
-                SMS_MAX_FREQUENCY: parseInt(process.env.GOTRUE_SMS_MAX_FREQUENCY || '0', 10),
-                SMS_MESSAGEBIRD_ACCESS_KEY: process.env.GOTRUE_SMS_MESSAGEBIRD_ACCESS_KEY || '',
-                SMS_MESSAGEBIRD_ORIGINATOR: process.env.GOTRUE_SMS_MESSAGEBIRD_ORIGINATOR || '',
-                SMS_OTP_EXP: parseInt(process.env.GOTRUE_SMS_OTP_EXP || '0', 10),
-                SMS_OTP_LENGTH: parseInt(process.env.GOTRUE_SMS_OTP_LENGTH || '0', 10),
-                SMS_PROVIDER: process.env.GOTRUE_SMS_PROVIDER || '',
-                SMS_TEMPLATE: process.env.GOTRUE_SMS_TEMPLATE || '',
-                SMS_TEST_OTP: process.env.GOTRUE_SMS_TEST_OTP || '',
-                SMS_TEST_OTP_VALID_UNTIL: process.env.GOTRUE_SMS_TEST_OTP_VALID_UNTIL || '',
-                SMS_TEXTLOCAL_API_KEY: process.env.GOTRUE_SMS_TEXTLOCAL_API_KEY || '',
-                SMS_TEXTLOCAL_SENDER: process.env.GOTRUE_SMS_TEXTLOCAL_SENDER || '',
-                SMS_TWILIO_ACCOUNT_SID: process.env.GOTRUE_SMS_TWILIO_ACCOUNT_SID || '',
-                SMS_TWILIO_AUTH_TOKEN: process.env.GOTRUE_SMS_TWILIO_AUTH_TOKEN || '',
-                SMS_TWILIO_CONTENT_SID: process.env.GOTRUE_SMS_TWILIO_CONTENT_SID || '',
-                SMS_TWILIO_MESSAGE_SERVICE_SID: process.env.GOTRUE_SMS_TWILIO_MESSAGE_SERVICE_SID || '',
-                SMS_TWILIO_VERIFY_ACCOUNT_SID: process.env.GOTRUE_SMS_TWILIO_VERIFY_ACCOUNT_SID || '',
-                SMS_TWILIO_VERIFY_AUTH_TOKEN: process.env.GOTRUE_SMS_TWILIO_VERIFY_AUTH_TOKEN || '',
-                SMS_TWILIO_VERIFY_MESSAGE_SERVICE_SID: process.env.GOTRUE_SMS_TWILIO_VERIFY_MESSAGE_SERVICE_SID || '',
-                SMS_VONAGE_API_KEY: process.env.GOTRUE_SMS_VONAGE_API_KEY || '',
-                SMS_VONAGE_API_SECRET: process.env.GOTRUE_SMS_VONAGE_API_SECRET || '',
-                SMS_VONAGE_FROM: process.env.GOTRUE_SMS_VONAGE_FROM || '',
-                SMTP_ADMIN_EMAIL: process.env.GOTRUE_SMTP_ADMIN_EMAIL || '',
-                SMTP_HOST: process.env.GOTRUE_SMTP_HOST || '',
-                SMTP_MAX_FREQUENCY: parseInt(process.env.GOTRUE_SMTP_MAX_FREQUENCY || '0', 10),
-                SMTP_PASS: process.env.GOTRUE_SMTP_PASS || '',
-                SMTP_PORT: process.env.GOTRUE_SMTP_PORT || '',
-                SMTP_SENDER_NAME: process.env.GOTRUE_SMTP_SENDER_NAME || '',
-                SMTP_USER: process.env.GOTRUE_SMTP_USER || '',
-                URI_ALLOW_LIST: process.env.GOTRUE_URI_ALLOW_LIST || '',
-              })
-            }
-            
-            if (req.method === 'PATCH') {
-              // Note: Modifying env vars in node doesn't persist to docker-compose
-              // We return success so the UI doesn't crash, but actual persistence requires Dokploy env changes
-              return res.status(200).json({ success: true, message: "Configuration mock updated" })
-            }
-            
-            return res.status(405).json({ error: 'Method not allowed' })
-          }
-          EOF
 
       - name: Patch Dockerfile to accept NEXT_PUBLIC build args
         run: |
           # Insert ARG declarations before the RUN pnpm build line so Next.js sees them
-          sed -i 's/RUN pnpm --filter studio exec next build/ARG NEXT_PUBLIC_API_URL=http:\/\/localhost:3000\/api\nENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL\nRUN pnpm --filter studio exec next build/' supabase/apps/studio/Dockerfile
+          sed -i 's/RUN pnpm --filter studio exec next build/ARG NEXT_PUBLIC_API_URL=http:\/\/localhost:3000\/api\nENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL\nARG NEXT_PUBLIC_IS_SELF_HOSTED=true\nENV NEXT_PUBLIC_IS_SELF_HOSTED=$NEXT_PUBLIC_IS_SELF_HOSTED\nRUN pnpm --filter studio exec next build/' apps/studio/Dockerfile
 
       - name: Get lower case owner name
         id: owner
@@ -302,21 +36,26 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Set up QEMU (for multi-arch builds)
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
-          context: ./supabase
-          file: ./supabase/apps/studio/Dockerfile
+          context: .
+          file: ./apps/studio/Dockerfile
           push: true
-          tags: ghcr.io/${{ steps.owner.outputs.owner }}/sb-studio:custom-v2
+          platforms: linux/amd64,linux/arm64
+          tags: ghcr.io/${{ steps.owner.outputs.owner }}/sb-studio:latest
           target: production
           # Provide a dummy API URL at build time so Next.js static prerendering
           # of IS_PLATFORM=false pages doesn't crash with "Invalid URL".
           # The real value is set at runtime via docker-compose environment variables.
           build-args: |
             NEXT_PUBLIC_API_URL=http://localhost:3000/api
+            NEXT_PUBLIC_IS_SELF_HOSTED=true
           cache-from: type=gha
           cache-to: type=gha,mode=max

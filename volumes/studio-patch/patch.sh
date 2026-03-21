@@ -76,5 +76,91 @@ print("  UI chunk patched")
 PYEOF
 done
 
+# -------------------------------------------------------
+# STEP 3: Patch entitlements check — unlock all features in local mode
+# Makes useCheckEntitlements return hasAccess=true and all hook keys
+# This is needed because useSelectedOrganizationQuery returns undefined
+# from /project/* URL context, preventing entitlements from being fetched.
+# -------------------------------------------------------
+echo "Step 3: Patching entitlements check..."
+for file in $(grep -rl 'getEntitlementSetValues' "$CHUNKS_DIR"); do
+    echo "  Found entitlements chunk: $file"
+    python3 - "$file" << 'PYEOF'
+import sys, re
+filepath = sys.argv[1]
+with open(filepath, 'r', encoding='utf-8') as f:
+    content = f.read()
+before = content
+
+# Always return hasAccess=true for all entitlements (local mode — all features unlocked)
+content = content.replace(
+    'hasAccess:!a.IS_PLATFORM||(b?.hasAccess??!1)',
+    'hasAccess:!0'
+)
+
+# Always return full set of hook entitlement keys (bypasses org subscription check)
+content = content.replace(
+    'getEntitlementSetValues:()=>{let e;return(e=b?.config)&&b.type&&"set"===b.type?e.set:[]}',
+    'getEntitlementSetValues:()=>["HOOK_SEND_SMS","HOOK_SEND_EMAIL","HOOK_CUSTOM_ACCESS_TOKEN","HOOK_MFA_VERIFICATION_ATTEMPT","HOOK_PASSWORD_VERIFICATION_ATTEMPT","HOOK_BEFORE_USER_CREATED"]'
+)
+
+with open(filepath, 'w', encoding='utf-8') as f:
+    f.write(content)
+
+if content != before:
+    print("  Entitlements patched: hasAccess=true, full hook set enabled")
+else:
+    print("  No changes (pattern may differ in this version)")
+PYEOF
+done
+
+
+# -------------------------------------------------------
+# STEP 4: Neutralize sign-in redirect loops caused by GoTrue session checks
+# IS_PLATFORM=true enables auth checks that redirect to /sign-in when
+# the GoTrue session expires or is missing. We disable these redirects.
+# -------------------------------------------------------
+echo "Step 4: Fixing auth redirect loops..."
+python3 - "$CHUNKS_DIR" << 'PYEOF'
+import sys, re, glob, os
+
+chunks_dir = sys.argv[1]
+patched = 0
+
+for filepath in glob.glob(os.path.join(chunks_dir, '*.js')):
+    try:
+        with open(filepath, 'rb') as f:
+            content = f.read()
+        original = content
+
+        # Pattern 1: w?.code===401 && v().then(()=>g.push("/sign-in"))
+        # Triggered when profile query returns 401 — disables auto signout+redirect
+        content = re.sub(
+            rb'[A-Za-z_$]+\?\.code===401&&[A-Za-z_$]+\(\)\.then\(\(\)=>[A-Za-z_$]+\.push\("/sign-in"\)\)',
+            b'false',
+            content
+        )
+
+        # Pattern 2: l().finally(()=>{o.push(`/sign-in?${t.toString()}`)})
+        # Triggered by session expiry signOut — replaced with a no-op
+        content = re.sub(
+            rb'[a-z]\(\)\.finally\(\(\)=>\{[a-z]\.push\(`/sign-in\?\$\{[a-z]\.toString\(\)\}`\)\}\)',
+            b'Promise.resolve()',
+            content
+        )
+
+        if content != original:
+            with open(filepath, 'wb') as f:
+                f.write(content)
+            patched += 1
+            print(f"  Auth redirect fixed: {os.path.basename(filepath)}")
+
+    except Exception as e:
+        print(f"  Error: {filepath}: {e}")
+
+print(f"  Auth redirect patch: {patched} file(s) modified")
+PYEOF
+
 echo "=== Patch complete. Starting Studio... ==="
 exec docker-entrypoint.sh node apps/studio/server.js
+

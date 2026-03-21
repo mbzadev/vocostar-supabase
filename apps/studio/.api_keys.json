@@ -1,0 +1,12 @@
+[
+  {
+    "id": "36a4a399-bac5-48c7-906d-99c9e702ec2b",
+    "name": "DSFSDF",
+    "api_key": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzczNjUzOTEyLCJleHAiOjIwODkwMTM5MTJ9.PF3BG5i9l9qSIWjQT24ixMVhyaoB8vFvIbkqAWIBM_M",
+    "type": "publishable",
+    "hash": "0fc6e179e3b5a0194927094003fef2555cfeea5a70dd92c333b0aaef1c8cf905",
+    "prefix": "eyJhbGciOi",
+    "description": null,
+    "created_at": "2026-03-16T09:38:32.936Z"
+  }
+]

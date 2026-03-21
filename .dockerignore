@@ -1,0 +1,14 @@
+node_modules
+apps/*/node_modules
+packages/*/node_modules
+volumes/
+.next/
+.git/
+.turbo/
+.pnpm-store
+.vscode/
+.DS_Store
+README.md
+*.md
+docker-compose*.yml
+.env*

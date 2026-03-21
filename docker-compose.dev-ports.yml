@@ -1,0 +1,30 @@
+# docker-compose.dev-ports.yml
+# Expose les ports internes Docker sur le host pour le développement Studio local
+# Utilisé quand le Studio est lancé directement sur le Mac (pnpm dev)
+#
+# Usage:
+#   docker compose -f .tmp-supabase/docker/docker-compose.yml -f docker-compose.dev-ports.yml up -d
+#
+# Ports exposés:
+#   - pg-meta:   http://localhost:8080  (Studio l'utilise pour les métadonnées DB)
+#   - Realtime:  ws://localhost:4000    (websockets tableEditor)
+#   - Functions: http://localhost:9000  (Edge Functions dev)
+
+services:
+  meta:
+    ports:
+      - "8080:8080"
+
+  analytics:
+    ports:
+      - "4000:4000"
+
+  db:
+    ports:
+      # Expose PostgreSQL on host port 5433 (5432 may be taken by baserow-db or local postgres)
+      - "5433:5432"
+
+  auth:
+    ports:
+      # Expose GoTrue directly for self-hosted admin config (not proxied by Kong)
+      - "9999:9999"

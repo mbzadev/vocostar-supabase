@@ -1,0 +1,69 @@
+# docker-compose.studio-dev.yml
+# Lance le Studio en mode DEV avec hot-reload
+# Le code source est monté depuis le Mac → pas de rebuild Docker à chaque changement
+#
+# Usage:
+#   docker compose -f .tmp-supabase/docker/docker-compose.yml -f docker-compose.studio-dev.yml up -d studio-dev
+#
+# Ensuite accès: http://localhost:8005
+# Hot-reload: modifier apps/studio/ → page se recharge automatiquement
+#
+# WORKFLOW:
+#   1. Modifier les fichiers dans apps/studio/
+#   2. Sauvegarder → Next.js recompile automatiquement (~1-2s)
+#   3. Browser se rafraichit
+#   4. Quand satisfait → docker build pour l'image prod
+
+services:
+  studio-dev:
+    container_name: vocostar-studio-dev
+    image: node:22-slim
+    restart: unless-stopped
+    working_dir: /app
+    
+    # Monte tout le monorepo depuis le Mac → hot-reload sur tous les packages
+    volumes:
+      - ./:/app:z
+      - studio_dev_nodemodules:/app/node_modules
+      - studio_dev_pnpm:/root/.local/share/pnpm
+      - studio_dev_nextjs:/app/apps/studio/.next
+    
+    environment:
+      # Studio self-hosted config
+      STUDIO_PG_META_URL: http://meta:8080
+      DEFAULT_ORGANIZATION_NAME: ${STUDIO_DEFAULT_ORGANIZATION:-VocoStar}
+      DEFAULT_PROJECT_NAME: ${STUDIO_DEFAULT_PROJECT:-Default Project}
+      SUPABASE_URL: http://kong:8000
+      SUPABASE_PUBLIC_URL: ${SUPABASE_PUBLIC_URL:-http://localhost:8000}
+      SUPABASE_ANON_KEY: ${ANON_KEY}
+      SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
+      AUTH_JWT_SECRET: ${JWT_SECRET}
+      GOTRUE_ADMIN_URL: http://auth:9999
+      NEXT_PUBLIC_IS_PLATFORM: "false"
+      NEXT_TELEMETRY_DISABLED: "1"
+      NODE_ENV: development
+      
+    ports:
+      - "3001:3000"  # Port 3001 pour le dev (3000 peut être pris)
+    
+    # Installe les deps et lance en mode dev avec hot-reload
+    command: >
+      bash -c "
+        apt-get update -qq && apt-get install -y git curl &&
+        npm install -g pnpm@10.24.0 &&
+        cd /app &&
+        pnpm install --frozen-lockfile &&
+        pnpm --filter studio dev
+      "
+    
+    networks:
+      - supabase_default
+
+volumes:
+  studio_dev_nodemodules:
+  studio_dev_pnpm:
+  studio_dev_nextjs:
+
+networks:
+  supabase_default:
+    external: true

@@ -1,0 +1,53 @@
+# docker-compose.backup.yml
+# Service WAL-G pour les backups PostgreSQL → Cloudflare R2
+#
+# Usage:
+#   docker compose -f .tmp-supabase/docker/docker-compose.yml -f docker-compose.backup.yml up -d
+#
+# Commandes manuelles:
+#   Backup complet:    docker exec vocostar-backup wal-g backup-push /var/lib/postgresql/data
+#   Lister backups:    docker exec vocostar-backup wal-g backup-list
+#   Restore dernier:   docker exec vocostar-backup wal-g backup-fetch /var/lib/postgresql/data LATEST
+#   Supprimer anciens: docker exec vocostar-backup wal-g delete retain FULL 7 --confirm
+
+services:
+  backup:
+    container_name: vocostar-backup
+    image: wal-g/wal-g:v3.0.5-pg15
+    restart: unless-stopped
+    environment:
+      # Cloudflare R2 (S3-compatible)
+      WALG_S3_PREFIX: ${WALG_S3_PREFIX}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_ENDPOINT_URL: ${WALG_S3_ENDPOINT}
+      AWS_REGION: ${WALG_S3_REGION:-auto}
+      AWS_S3_FORCE_PATH_STYLE: ${AWS_S3_FORCE_PATH_STYLE:-true}
+
+      # WAL-G config
+      WALG_COMPRESSION_METHOD: ${WALG_COMPRESSION_METHOD:-brotli}
+      WALG_DELTA_MAX_STEPS: 7
+
+      # PostgreSQL connexion
+      PGHOST: db
+      PGPORT: ${POSTGRES_PORT}
+      PGUSER: postgres
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB}
+
+    volumes:
+      - ./volumes/db/data:/var/lib/postgresql/data:ro,Z
+      - ./docker/backup-entrypoint.sh:/entrypoint.sh:ro
+
+    depends_on:
+      - db
+
+    # Backup complet quotidien à 03h00 + nettoyage des anciens
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+
+    networks:
+      - supabase_network_vocostar
+
+networks:
+  supabase_network_vocostar:
+    external: true
