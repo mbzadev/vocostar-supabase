@@ -547,7 +547,13 @@ services:
 
 volumes:
   db-config:
+    name: supabase_db_config
   deno-cache:
+    name: supabase_deno_cache
   db-data:
+    name: supabase_db_data
   storage-data:
+    name: supabase_storage_data
   snippets-data:
+    name: supabase_snippets_data
+
